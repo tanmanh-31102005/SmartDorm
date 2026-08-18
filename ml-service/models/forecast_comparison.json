@@ -1,0 +1,36 @@
+{
+  "evaluatedAt": "2026-08-18T11:50:44.970577+00:00",
+  "datasetRange": "45 days (1081 hourly intervals)",
+  "chronologicalSplit": {
+    "trainSamples": 756,
+    "valSamples": 162,
+    "testSamples": 163
+  },
+  "models": {
+    "Baseline": {
+      "mae": 25.63,
+      "rmse": 28.59,
+      "mape": 43.54,
+      "r2Score": 0.7333,
+      "samplesEvaluated": 163,
+      "dataSource": "SIMULATION_DATA"
+    },
+    "Prophet": {
+      "mae": 25.17,
+      "rmse": 27.92,
+      "mape": 43.23,
+      "r2Score": 0.7455,
+      "samplesEvaluated": 163,
+      "dataSource": "SIMULATION_DATA"
+    },
+    "LSTM": {
+      "mae": 24.97,
+      "rmse": 27.84,
+      "mape": 41.9,
+      "r2Score": 0.7471,
+      "samplesEvaluated": 163,
+      "dataSource": "SIMULATION_DATA"
+    }
+  },
+  "bestModel": "LSTM"
+}

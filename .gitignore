@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+*/node_modules/
+.pnp
+.pnp.js
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# Next.js Build & Cache
+.next/
+*/.next/
+out/
+build/
+dist/
+*/dist/
+.turbo/
+*/.turbo/
+
+# PlatformIO & Embedded Builds
+.pio/
+*/.pio/
+.vscode/
+
+# Python Cache & Virtual Environments
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Coverage & Tests
+coverage/
+*/coverage/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Archives
+*.zip
+*.tar.gz
+*.rar

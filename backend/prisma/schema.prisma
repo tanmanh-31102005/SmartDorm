@@ -1,0 +1,291 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite does not support enums — using String with validation in code
+// Role: "ADMIN" | "STUDENT"
+// DeviceType: "LIGHT" | "FAN" | "DOOR_LOCK" | "BUZZER" | "AIR_CON"
+// EmergencyType: "FIRE" | "GAS_LEAK" | "INTRUSION" | "POWER_OUTAGE"
+// EmergencyLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
+
+model User {
+  id           String   @id @default(cuid())
+  studentId    String   @unique
+  fullName     String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("STUDENT")
+  rfidCardId   String?  @unique
+  phone        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  roomId String?
+  room   Room?   @relation(fields: [roomId], references: [id])
+
+  accessLogs  AccessLog[]
+  commandLogs CommandLog[]
+
+  @@map("users")
+}
+
+model Building {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  address   String?
+  floors    Int      @default(5)
+  createdAt DateTime @default(now())
+
+  rooms Room[]
+
+  @@map("buildings")
+}
+
+model Room {
+  id               String   @id @default(cuid())
+  roomNumber       String
+  floor            Int
+  capacity         Int      @default(4)
+  espDeviceId      String?  @unique
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  buildingId String
+  building   Building @relation(fields: [buildingId], references: [id])
+
+  users       User[]
+  devices     Device[]
+  sensorData  SensorData[]
+  accessLogs  AccessLog[]
+  emergencies Emergency[]
+
+  @@unique([buildingId, roomNumber])
+  @@map("rooms")
+}
+
+model Device {
+  id        String     @id @default(cuid())
+  name      String
+  type      String    // LIGHT | FAN | DOOR_LOCK | BUZZER | AIR_CON
+  isOn      Boolean    @default(false)
+  isOnline  Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id])
+
+  commandLogs CommandLog[]
+
+  @@map("devices")
+}
+
+model SensorData {
+  id             String   @id @default(cuid())
+  temperature    Float?
+  humidity       Float?
+  gasLevel       Float?
+  gasAlert       Boolean  @default(false)
+  tempAlert      Boolean  @default(false)
+  motionDetected Boolean  @default(false)
+  recordedAt     DateTime @default(now())
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id])
+
+  @@index([roomId, recordedAt])
+  @@map("sensor_data")
+}
+
+model AccessLog {
+  id         String   @id @default(cuid())
+  rfidCardId String
+  action     String
+  authorized Boolean  @default(true)
+  timestamp  DateTime @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id])
+
+  @@index([roomId, timestamp])
+  @@map("access_logs")
+}
+
+model CommandLog {
+  id          String   @id @default(cuid())
+  commandType String
+  payload     String   // JSON string
+  status      String   @default("pending")
+  executedAt  DateTime @default(now())
+
+  deviceId String
+  device   Device @relation(fields: [deviceId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("command_logs")
+}
+
+model Emergency {
+  id          String         @id @default(cuid())
+  type        String   // FIRE | GAS_LEAK | INTRUSION | POWER_OUTAGE
+  level       String   // LOW | MEDIUM | HIGH | CRITICAL
+  description String?
+  sensorValue Float?
+  isResolved  Boolean        @default(false)
+  resolvedAt  DateTime?
+  createdAt   DateTime       @default(now())
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id])
+
+  @@index([roomId, createdAt])
+  @@map("emergencies")
+}
+
+// ==================== AI / MACHINE LEARNING ====================
+// Thêm sau các bảng hiện có — KHÔNG xóa hoặc thay đổi bảng cũ
+// Status: "EXPERIMENTAL" | "ACTIVE" | "DEPRECATED"
+// Prediction type: "ENERGY_FORECAST" | "ANOMALY_SCORE" | "OCCUPANCY"
+
+model MlModel {
+  id           String    @id @default(cuid())
+  modelName    String    // "energy-baseline" | "energy-prophet" | "device-anomaly-iforest" | "occupancy-rule-proxy"
+  modelType    String    // "FORECAST" | "ANOMALY" | "OCCUPANCY"
+  version      String    @default("v1")
+  status       String    @default("EXPERIMENTAL") // "EXPERIMENTAL" | "ACTIVE" | "DEPRECATED"
+  trainedAt    DateTime  @default(now())
+  datasetStart DateTime?
+  datasetEnd   DateTime?
+  metrics      String?   // JSON: {mae, rmse, mape, f1, accuracy, inferenceMs}
+  artifactPath String?
+  inferenceMs  Int?
+  notes        String?
+  createdAt    DateTime  @default(now())
+
+  predictions MlPrediction[]
+
+  @@map("ml_models")
+}
+
+model MlPrediction {
+  id             String   @id @default(cuid())
+  modelId        String
+  model          MlModel  @relation(fields: [modelId], references: [id])
+  roomId         String?
+  buildingId     String?
+  predictionType String   // "ENERGY_FORECAST" | "ANOMALY_SCORE" | "OCCUPANCY"
+  inputData      String   // JSON — input features used
+  outputData     String   // JSON — prediction result
+  confidence     Float?
+  dataSource     String   @default("SIMULATION_DATA") // "SIMULATION_DATA" | "WOKWI" | "REAL_DEVICE"
+  createdAt      DateTime @default(now())
+
+  @@index([roomId, createdAt])
+  @@index([predictionType, createdAt])
+  @@map("ml_predictions")
+}
+
+model DeviceAnomaly {
+  id             String    @id @default(cuid())
+  deviceId       String?
+  deviceName     String
+  roomId         String
+  anomalyScore   Float     // 0.0 - 1.0 from Isolation Forest
+  severity       String    @default("WARNING") // "NORMAL" | "WARNING" | "HIGH" | "CRITICAL"
+  features       String    // JSON: {powerW, responseMs, failureRate, uptime}
+  status         String    @default("OPEN") // "OPEN" | "ACKNOWLEDGED" | "RESOLVED"
+  recommendation String?
+  detectedAt     DateTime  @default(now())
+  resolvedAt     DateTime?
+
+  @@index([roomId, detectedAt])
+  @@index([status, severity])
+  @@map("device_anomalies")
+}
+
+model OccupancyPrediction {
+  id                  String   @id @default(cuid())
+  roomId              String
+  occupiedProbability Float    // 0.0 - 1.0
+  predictedState      String   // "OCCUPIED" | "VACANT"
+  features            String   // JSON: {rfidEntries, deviceState, hour, dayOfWeek}
+  source              String   @default("RULE_PROXY") // "RULE_PROXY" | "ML_MODEL"
+  createdAt           DateTime @default(now())
+
+  @@index([roomId, createdAt])
+  @@map("occupancy_predictions")
+}
+
+model AiRecommendation {
+  id             String    @id @default(cuid())
+  type           String    // "ENERGY" | "DEVICE" | "SECURITY" | "OCCUPANCY" | "MAINTENANCE"
+  severity       String    @default("WARNING") // "INFO" | "WARNING" | "CRITICAL"
+  title          String
+  description    String
+  location       String?   // buildingId hoặc roomId
+  reason         String    // why this was generated
+  recommendation String    // what action to take
+  confidence     Float?    // 0.0 - 1.0 — only set if model provides it
+  evidence       String?   // JSON: raw data that led to recommendation
+  status         String    @default("PENDING") // "PENDING" | "ACCEPTED" | "DISMISSED" | "EXECUTED"
+  acceptedBy     String?
+  acceptedAt     DateTime?
+  dismissedAt    DateTime?
+  executedAt     DateTime?
+  executionResult String?
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([type, status])
+  @@map("ai_recommendations")
+}
+
+model AutomationRule {
+  id              String    @id @default(cuid())
+  name            String
+  description     String?
+  conditions      String    // JSON array of condition objects
+  actions         String    // JSON array of action objects
+  priority        Int       @default(50) // 1 = highest, 100 = lowest
+  enabled         Boolean   @default(false) // PHẢI được Admin bật thủ công
+  cooldownMs      Int       @default(300000) // 5 min mặc định
+  lastTriggeredAt DateTime?
+  createdBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  executions AutomationExecution[]
+
+  @@map("automation_rules")
+}
+
+model AutomationExecution {
+  id              String         @id @default(cuid())
+  ruleId          String
+  rule            AutomationRule @relation(fields: [ruleId], references: [id])
+  triggeredBy     String         // "AI_RECOMMENDATION" | "MANUAL" | "SCHEDULE"
+  inputContext    String         // JSON snapshot trạng thái khi trigger
+  actionsExecuted String         // JSON mảng các action đã chạy
+  result          String         // "SUCCESS" | "PARTIAL" | "FAILED"
+  requestedBy     String?        // userId nếu manual
+  executedAt      DateTime       @default(now())
+
+  @@index([ruleId, executedAt])
+  @@map("automation_executions")
+}

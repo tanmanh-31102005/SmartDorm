@@ -1,0 +1,46 @@
+# Base Node.js image
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install --legacy-peer-deps
+
+
+# Copy source code
+COPY . .
+
+# Set build arguments and environment variables
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+ENV NEXT_PUBLIC_API_URL=http://localhost:3001/api
+ENV NEXT_PUBLIC_WS_URL=http://localhost:3001
+
+# Build Next.js
+RUN npm run build
+
+# Runner stage
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN apk add --no-cache curl
+
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:3000 || exit 1
+
+CMD ["npm", "run", "start"]

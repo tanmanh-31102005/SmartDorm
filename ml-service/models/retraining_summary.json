@@ -1,0 +1,35 @@
+{
+  "status": "COMPLETED",
+  "startedAt": "2026-08-18T11:50:44.003727+00:00",
+  "completedAt": "2026-08-18T11:50:45.648207+00:00",
+  "durationSeconds": 1.64,
+  "forecastBestModel": "LSTM",
+  "forecastMetrics": {
+    "Baseline": {
+      "mae": 25.63,
+      "rmse": 28.59,
+      "mape": 43.54,
+      "r2Score": 0.7333,
+      "samplesEvaluated": 163,
+      "dataSource": "SIMULATION_DATA"
+    },
+    "Prophet": {
+      "mae": 25.17,
+      "rmse": 27.92,
+      "mape": 43.23,
+      "r2Score": 0.7455,
+      "samplesEvaluated": 163,
+      "dataSource": "SIMULATION_DATA"
+    },
+    "LSTM": {
+      "mae": 24.97,
+      "rmse": 27.84,
+      "mape": 41.9,
+      "r2Score": 0.7471,
+      "samplesEvaluated": 163,
+      "dataSource": "SIMULATION_DATA"
+    }
+  },
+  "anomalyF1Score": 0.8889,
+  "occupancyAccuracy": 100.0
+}

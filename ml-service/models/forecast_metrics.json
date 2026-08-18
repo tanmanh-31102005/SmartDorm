@@ -1,0 +1,8 @@
+{
+  "mae": 25.17,
+  "rmse": 27.92,
+  "mape": 43.23,
+  "r2Score": 0.7455,
+  "samplesEvaluated": 163,
+  "dataSource": "SIMULATION_DATA"
+}

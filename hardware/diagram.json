@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "author": "Smart Dormitory Team",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": 0,
+      "left": 200,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht1",
+      "top": -80,
+      "left": -100,
+      "attrs": { "temperature": "28", "humidity": "65" }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot1",
+      "top": 80,
+      "left": -150,
+      "attrs": { "label": "Gas Level (MQ-2 Sim)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 200,
+      "left": -150,
+      "attrs": { "color": "blue", "label": "RFID Card 1 (SV001)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn2",
+      "top": 260,
+      "left": -150,
+      "attrs": { "color": "green", "label": "RFID Card 2 (SV002)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn3",
+      "top": 320,
+      "left": -150,
+      "attrs": { "color": "red", "label": "RFID Card Invalid" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_light",
+      "top": 380,
+      "left": -150,
+      "attrs": { "color": "yellow", "label": "Bat/Tat Den (GPIO 32)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_fan",
+      "top": 440,
+      "left": -150,
+      "attrs": { "color": "cyan", "label": "Bat/Tat Quat (GPIO 33)" }
+    },
+
+    {
+      "type": "wokwi-led",
+      "id": "led1",
+      "top": -80,
+      "left": 500,
+      "attrs": { "color": "white", "label": "Den phong 1" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led2",
+      "top": -40,
+      "left": 500,
+      "attrs": { "color": "white", "label": "Den phong 2" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led3",
+      "top": 0,
+      "left": 500,
+      "attrs": { "color": "white", "label": "Den phong 3" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_fan",
+      "top": 40,
+      "left": 500,
+      "attrs": { "color": "blue", "label": "Quat" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_door",
+      "top": 80,
+      "left": 500,
+      "attrs": { "color": "green", "label": "Cua (Green=Mo, Red=Khoa)" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_alarm",
+      "top": 120,
+      "left": 500,
+      "attrs": { "color": "red", "label": "Bao dong" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": 180,
+      "left": 500,
+      "attrs": { "volume": "0.5" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": -88,
+      "left": 480,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": -48,
+      "left": 480,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r3",
+      "top": -8,
+      "left": 480,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r4",
+      "top": 32,
+      "left": 480,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r5",
+      "top": 72,
+      "left": 480,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r6",
+      "top": 112,
+      "left": 480,
+      "attrs": { "value": "220" }
+    }
+  ],
+  "connections": [
+    ["esp:3V3", "dht1:VCC", "red", []],
+    ["esp:GND.1", "dht1:GND", "black", []],
+    ["esp:4", "dht1:SDA", "green", []],
+
+    ["esp:3V3", "pot1:VCC", "red", []],
+    ["esp:GND.2", "pot1:GND", "black", []],
+    ["esp:34", "pot1:SIG", "orange", []],
+
+    ["esp:GND.3", "btn1:2.l", "black", []],
+    ["esp:18", "btn1:1.l", "purple", []],
+
+    ["esp:GND.4", "btn2:2.l", "black", []],
+    ["esp:19", "btn2:1.l", "purple", []],
+
+    ["esp:GND.5", "btn3:2.l", "black", []],
+    ["esp:21", "btn3:1.l", "purple", []],
+
+    ["esp:GND.1", "btn_light:2.l", "black", []],
+    ["esp:32", "btn_light:1.l", "yellow", []],
+
+    ["esp:GND.2", "btn_fan:2.l", "black", []],
+    ["esp:33", "btn_fan:1.l", "blue", []],
+
+
+    ["esp:25", "r1:1", "yellow", []],
+    ["r1:2", "led1:A", "yellow", []],
+    ["esp:GND.6", "led1:C", "black", []],
+
+    ["esp:26", "r2:1", "yellow", []],
+    ["r2:2", "led2:A", "yellow", []],
+    ["esp:GND.7", "led2:C", "black", []],
+
+    ["esp:27", "r3:1", "yellow", []],
+    ["r3:2", "led3:A", "yellow", []],
+    ["esp:GND.8", "led3:C", "black", []],
+
+    ["esp:14", "r4:1", "blue", []],
+    ["r4:2", "led_fan:A", "blue", []],
+    ["esp:GND.9", "led_fan:C", "black", []],
+
+    ["esp:12", "r5:1", "green", []],
+    ["r5:2", "led_door:A", "green", []],
+    ["esp:GND.10", "led_door:C", "black", []],
+
+    ["esp:13", "r6:1", "red", []],
+    ["r6:2", "led_alarm:A", "red", []],
+    ["esp:GND.11", "led_alarm:C", "black", []],
+
+    ["esp:15", "bz1:1", "orange", []],
+    ["esp:GND.12", "bz1:2", "black", []]
+  ],
+  "dependencies": {}
+}
