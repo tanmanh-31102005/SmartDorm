@@ -9,101 +9,126 @@
 [![InfluxDB](https://img.shields.io/badge/InfluxDB-2.7-22ADF6?style=for-the-badge&logo=influxdb)](https://www.influxdata.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker)](https://www.docker.com/)
 
-> **SmartDormitory Monitoring, Management & AI Copilot System**  
-> Hệ thống Quản lý Ký Túc Xá Đại học Thông minh cấp thương mại: Tích hợp IoT Digital Twin, Machine Learning Dự báo Phụ tải Đa biến, Trợ lý ảo AI Copilot kiểm chứng dữ liệu thực tế (Data Grounding) và Biểu giá điện bậc thang EVN 6 bậc.
+> **Smart Dormitory Monitoring, Management & AI Copilot System**  
+> Nền tảng Quản trị Ký Túc Xá Đại học Thông minh cấp thương mại: Tích hợp IoT Digital Twin, Machine Learning Dự báo Phụ tải Đa biến, Trợ lý ảo AI Copilot kiểm chứng dữ liệu thực tế (Data Grounding) và Biểu giá điện bậc thang EVN 6 bậc.
 
 ---
 
 ## 🏛️ Kiến Trúc Hệ Thống (Architecture Overview)
 
 ```mermaid
-graph TD
-    subgraph IoT_Hardware_Layer ["1. TẦNG THIẾT BỊ IoT & DIGITAL TWIN"]
+flowchart TB
+    subgraph Layer1 ["1. TẦNG THIẾT BỊ IoT & DIGITAL TWIN"]
+        Sensors["Cảm biến DHT22 (Nhiệt/Ẩm), MQ-2 (Gas/Khói), PZEM-004T (Điện), RFID RC522"]
         ESP32["ESP32 Microcontroller (Wokwi Twin / Real Hardware)"]
-        Sensors["DHT22 (Nhiệt ẩm), MQ-2 (Gas/Khói), PZEM-004T (Điện), RFID RC522"]
         Actuators["Rơ-le Đèn, Quạt Thông Gió, Khóa Cửa Điện Từ, Còi Báo Động"]
-        Sensors --> ESP32 --> Actuators
+        Sensors --> ESP32
+        ESP32 --> Actuators
     end
 
-    subgraph Communication_Layer ["2. TẦNG KẾT NỐI & ĐIỀU PHỐI"]
+    subgraph Layer2 ["2. TẦNG GIAO TIẾP & TRUYỀN THÔNG"]
         MQTT["Mosquitto MQTT Broker (Port 1883)"]
         WS["Socket.IO WebSocket Gateway (Realtime Telemetry)"]
-        ESP32 <-->|MQTT Pub/Sub| MQTT
     end
 
-    subgraph Backend_ML_Layer ["3. TẦNG NGHIỆP VỤ & TRÍ TUỆ NHÂN TẠO"]
-        NestJS["NestJS 10 Enterprise API (Port 3001)"]
+    subgraph Layer3 ["3. TẦNG BACKEND & TRÍ TUỆ NHÂN TẠO"]
+        NestJS["NestJS 10 Enterprise API Gateway (Port 3001)"]
         Prisma["Prisma ORM (PostgreSQL & SQLite)"]
         RuleEngine["Deterministic Safety Rule Engine (Strategy Pattern)"]
         FastAPI["FastAPI ML Service (Port 8000)"]
-        GBM["GBM Forecaster Champion (R²=0.9607, 15 Features)"]
+        GBM["GBM Forecaster Champion (R2=0.9607, 15 Features)"]
         LSTM["LSTM Forecaster Challenger (PyTorch)"]
         IForest["Isolation Forest (Phát hiện dị thường thiết bị)"]
-        Gemini["Google Gemini 1.5 Pro (LLM Trợ lý ảo Copilot)"]
-        
-        MQTT --> NestJS
-        NestJS <--> Prisma
-        NestJS --> RuleEngine
-        NestJS <-->|REST Client| FastAPI
-        FastAPI --> GBM
-        FastAPI --> LSTM
-        FastAPI --> IForest
-        NestJS <-->|Tool Grounding| Gemini
+        OccModel["Random Forest (Dự báo hiện diện sinh viên)"]
+        Gemini["Google Gemini 1.5 Pro (Trợ lý ảo Copilot Grounded)"]
     end
 
-    subgraph Frontend_Layer ["4. TẦNG GIAO DIỆN NGƯỜI DÙNG"]
+    subgraph Layer4 ["4. TẦNG GIAO DIỆN NGƯỜI DÙNG"]
         NextJS["Next.js 16 Web Application (Port 3000)"]
-        AdminPortal["Admin Management Dashboard (Desktop/Tablet)"]
-        StudentPortal["Mobile-First Student Portal (PWA Native Bottom Nav)"]
-        AiWidget["SmartDorm AI Copilot (Dockable Widget)"]
-
-        NestJS <-->|REST & WebSocket| NextJS
-        NextJS --> AdminPortal
-        NextJS --> StudentPortal
-        NextJS --> AiWidget
+        AdminPortal["Bảng Điều Khiển Quản Trị BQL (Admin Dashboard)"]
+        StudentPortal["Cổng Sinh Viên Mobile-First PWA (Bottom Nav)"]
+        AiWidget["Trợ Lý Ảo SmartDorm AI Copilot (Dockable Widget)"]
     end
+
+    ESP32 -->|MQTT Telemetry & Commands| MQTT
+    MQTT -->|Subscribe Telemetry| NestJS
+    NestJS -->|Publish Commands| MQTT
+    NestJS -->|CRUD & Persistence| Prisma
+    NestJS -->|Evaluate Safety Rules| RuleEngine
+    NestJS -->|REST API Client| FastAPI
+    FastAPI --> GBM
+    FastAPI --> LSTM
+    FastAPI --> IForest
+    FastAPI --> OccModel
+    NestJS -->|Data Grounding - 12 Tools| Gemini
+    NestJS -->|Broadcast Realtime Telemetry| WS
+    WS --> NextJS
+    NextJS --> AdminPortal
+    NextJS --> StudentPortal
+    NextJS --> AiWidget
 ```
 
 ---
 
-## 🌟 Tính Năng Cốt Lõi (Core Pillars)
+## 🌟 BẢNG DANH MỤC TÍNH NĂNG TOÀN DIỆN (FULL FEATURE CATALOG)
 
-### 1. ⚡ Dự Báo Năng Lượng Đa Biến — Mô Hình GBM Champion
-- **Thuật toán**: Huấn luyện Gradient Boosting Machine (GBM) với **15 đặc trưng đa biến** (Lags phụ tải 1h-24h, nhiệt độ, độ ẩm môi trường, chỉ số ngày trong tuần, giờ cao điểm).
-- **Hiệu năng kiểm toán thực nghiệm**:
-  - **Hệ số xác định $R^2$ = 0.9607** (giải thích 96.07% biến thiên phụ tải).
-  - **Sai số tương đối MAPE = 4.69%** (chuẩn dự báo lưới điện thông minh).
-  - **Độ trễ suy luận (Latency)**: $\approx 8\text{ ms}$, phục vụ realtime inference.
-- **Kiến trúc đối soát Model Champion/Challenger**: Tự động so sánh GBM Champion và LSTM Challenger trực quan trên giao diện Recharts.
+Hệ thống **SmartDorm Enterprise** được tổ chức thành 4 phân hệ lớn với hơn 25+ tính năng nghiệp vụ chuyên sâu:
 
-### 2. 💡 Hóa Đơn Điện Sinh Hoạt Bậc Thang EVN 6 Bậc & Bộ Mô Phỏng
-- **Thuật toán tính giá điện lũy tiến**: Áp dụng chuẩn **Biểu giá điện sinh hoạt 6 bậc thang của Tập đoàn Điện lực Việt Nam (EVN)**:
-  - *Bậc 1 (0–50 kWh)*: 1.893 đ/kWh
-  - *Bậc 2 (51–100 kWh)*: 1.956 đ/kWh
-  - *Bậc 3 (101–200 kWh)*: 2.271 đ/kWh
-  - *Bậc 4 (201–300 kWh)*: 2.860 đ/kWh
-  - *Bậc 5 (301–400 kWh)*: 3.197 đ/kWh
-  - *Bậc 6 (> 400 kWh)*: 3.302 đ/kWh
-  - Thuế GTGT (VAT 8%) theo quy định nhà nước.
-- **Cơ chế chia đều theo đầu người**: Tự động liên kết sĩ số sinh viên thực tế trong phòng để chia tiền điện minh bạch.
-- **Interactive Cost Simulator**: Thanh trượt mô phỏng phụ tải (40–350 kWh) giúp sinh viên dự toán chi phí khi sử dụng thiết bị công suất lớn.
-- **Xuất Báo Cáo Kế Toán**: Xuất file Excel (.xlsx) đa bảng và bản in PDF chuẩn thanh toán qua mã QR.
+### 1. PHÂN HỆ QUẢN TRỊ KÝ TÚC XÁ (ADMIN DASHBOARD — 12 MODULES)
 
-### 3. 🤖 Trợ Lý Ảo SmartDorm AI Copilot (Data Grounding)
-- **Tích hợp Google Gemini**: Kết nối trực tiếp 12 công cụ truy xuất dữ liệu độc quyền (`CopilotToolsService`).
-- **Data Grounding**: Câu trả lời của AI 100% dựa trên dữ liệu cảm biến Wokwi, hóa đơn EVN và nhật ký thẻ RFID thực tế (loại bỏ hoàn toàn hiện tượng AI bịa đặt - Hallucination).
-- **Phân quyền RBAC nghiêm ngặt**: Sinh viên chỉ truy vấn dữ liệu phòng của chính mình; Ban quản lý có quyền kiểm soát và tổng hợp dữ liệu toàn trường.
-- **Nguyên tắc An Toàn Sinh Mạng**: LLM chỉ có quyền Đọc (Read-Only), tuyệt đối không cấp quyền điều khiển phần cứng trực tiếp cho mô hình sinh ngôn ngữ.
+| Module / Trang | Đường dẫn | Chi tiết tính năng & Nghiệp vụ kỹ thuật |
+|---|---|---|
+| **Tổng Quan (Overview)** | `/dashboard` | Thống kê số lượng phòng, tỷ lệ lấp đầy, số sinh viên lưu trú, tổng điện năng tiêu thụ toàn trường, vi khí hậu các tòa, thẻ tóm tắt sự cố khẩn cấp. |
+| **Quản Lý Phòng Ở** | `/dashboard/rooms` | Giám sát danh sách phòng theo tòa và tầng; Chế độ xem thẻ Grid và Bảng Table có `overflow-x-auto`; Hiển thị nhiệt độ, độ ẩm, nồng độ gas và sĩ số từng phòng; Thao tác rơ-le và mở khóa từ xa. |
+| **Quản Lý Tòa Nhà** | `/dashboard/buildings` | Thiết lập danh mục tòa nhà (Tòa A, B, C), phân bổ số tầng, cấu hình số phòng và định mức phụ tải. |
+| **Quản Lý Cư Dân** | `/dashboard/residents` | Quản lý hồ sơ sinh viên, MSSV, khoa ngành, số điện thoại, quản lý gán mã UID thẻ từ RFID, tra cứu và lọc danh sách. |
+| **Giám Sát Thiết Bị IoT** | `/dashboard/devices` | Giám sát trạng thái kết nối Online/Offline, công suất hoạt động (Watts), điều khiển bật/tắt rơ-le đèn, quạt, khóa cửa, còi báo động tức thời qua giao thức MQTT. |
+| **Trung Tâm An Ninh** | `/dashboard/security` | Giám sát an ninh vòng ngoài, phát hiện quẹt thẻ bị từ chối (Unauthorized / Denied), cảnh báo hành vi thử thẻ lạ liên tiếp. |
+| **Nhật Ký Quẹt Thẻ** | `/dashboard/access-log` | Lưu vết 100% lượt quẹt thẻ: Thời gian, Mã thẻ RFID masked, Tên sinh viên, Số phòng, Hướng đi (ENTRY/EXIT), Kết quả cấp phép (Authorized/Denied). |
+| **Bản Đồ Vi Khí Hậu** | `/dashboard/environment` | Giám sát nhiệt độ DHT22, độ ẩm và nồng độ khí gas MQ-2 thời gian thực qua WebSocket; Cảnh báo phân tầng màu (Xanh: Mát, Vàng: Ẩm cao, Đỏ: Nguy hiểm). |
+| **Trung Tâm PCCC & Cứu Nạn** | `/dashboard/emergency` | Triển khai **Strategy Pattern** cho 2 kịch bản khẩn cấp: *Hỏa hoạn (Fire)* và *Rò rỉ khí gas (Gas Leak)*; Tự động mở chốt khóa cửa thoát hiểm, bật quạt hút khói và ngắt điện phòng; Nhật ký xử lý sự cố. |
+| **Phân Tích Điện Năng** | `/dashboard/energy` & `/analytics` | Biểu đồ phụ tải toàn campus, phân tích giờ cao điểm (Peak Hours), đối chiếu điện năng tiêu thụ giữa các tòa nhà. |
+| **Báo Cáo & Xuất Dữ Liệu** | `/dashboard/reports` | Xuất 4 loại báo cáo chuyên sâu (Điện năng, An ninh RFID, Sự cố khẩn cấp, Sức khỏe thiết bị IoT); Xuất bảng tính **Excel (.xlsx)** đa bảng và bản in **PDF** chuẩn kiểm toán kèm chữ ký BQL. |
+| **Cài Đặt Hệ Thống** | `/dashboard/settings` | Cấu hình ngưỡng nhiệt an toàn, ngưỡng gas MQ-2 nguy hiểm, tích hợp cảnh báo qua Telegram Bot và Email SMTP. |
 
-### 4. 📱 Giao Diện Mobile-First & Fault-Tolerant UI
-- **Cổng Sinh Viên (`/student/*`)**: Trang bị **Sticky Bottom Navigation Bar** chuẩn ứng dụng di động native với 5 tab: *Trang Chủ, Phòng Ở, Thiết Bị, Điện Năng, Cảnh Báo*.
-- **Dockable AI Widget**: Nút bấm AI Copilot tự động nhấc lên trên thanh điều hướng (`bottom-20`), có nút thu gọn (`–`) bám sát mép màn hình chống che khuất nút thao tác.
-- **Global Error Boundary (`error.tsx`) & 404 (`not-found.tsx`)**: Ngăn chặn hoàn toàn hiện tượng màn hình trắng xóa (White Screen of Death), tự động phục hồi phiên làm việc khi backend mất kết nối.
-- **Toast System**: Bắn thông báo realtime đa cấp độ (*success, warning, critical*).
+---
 
-### 5. 🌡️ An Toàn PCCC & Phản Ứng Khẩn Cấp (Strategy Pattern)
-- **Cảm biến DHT22 & MQ-2**: Giám sát nhiệt độ, độ ẩm và nồng độ khí gas liên tục.
-- **Cơ chế phản ứng tức thì**: Tự động mở chốt khóa cửa thoát hiểm (DOOR_LOCK), bật quạt thông gió (FAN), ngắt điện thiết bị không thiết yếu và gửi cảnh báo khẩn cấp lên Dashboard/Telegram.
+### 2. PHÂN HỆ TRÍ TUỆ NHÂN TẠO & MLOPS (`/dashboard/intelligence` — 6 MODULES)
+
+| Module / Trang | Thuật toán & Công nghệ | Mô tả tính năng & Chỉ số hiệu năng |
+|---|---|---|
+| **Dự Báo Phụ Tải Đa Biến** | `Gradient Boosting (GBM)` | Huấn luyện với **15 đặc trưng đa biến** (Lags 1h-24h, nhiệt ẩm môi trường, chỉ số ngày, giờ cao điểm); Đạt **$R^2 = 0.9607$**, **$MAPE = 4.69\%$**, độ trễ suy luận $\approx 8\text{ms}$; Bảng Feature Importance và so sánh với LSTM. |
+| **Phát Hiện Dị Thường Thiết Bị** | `Isolation Forest` | Học máy không giám sát phát hiện thiết bị tiêu thụ điện bất thường, tính toán **Anomaly Score (0.00 – 1.00)**; Nhận diện sớm nguy cơ chập cháy rơ-le hoặc rò rỉ điện. |
+| **Dự Báo Hiện Diện Sinh Viên** | `Random Forest Classifier` | Dự báo xác suất có mặt sinh viên trong phòng (độ chính xác ~89.2%); Đưa ra danh sách phòng trống đang bật thiết bị để tối ưu hóa năng lượng. |
+| **Đề Xuất & Tự Động Hóa** | `Deterministic Rule Engine` | Quản lý vòng đời khuyến nghị tự động hóa (Generated ➔ Pending ➔ Accepted ➔ Executed); Tự động tắt thiết bị khi phòng không có người sau 30 phút. |
+| **Quản Trị Vòng Đời MLOps** | `ML Client & Drift Detection` | Giám sát độ trôi dữ liệu (Data Drift) và độ lỗi thời (Model Staleness); Cơ chế 1-click chuyển đổi mô hình chủ đạo (Promote Champion Model). |
+| **Trợ Lý Ảo Điều Hành** | `Google Gemini 1.5 Pro` | Trang bị 12 công cụ truy xuất dữ liệu nội bộ (`CopilotToolsService`); Data Grounding loại bỏ hoàn toàn bịa đặt; Tách biệt an toàn sinh mạng (Read-Only). |
+
+---
+
+### 3. PHÂN HỆ CỔNG THÔNG TIN SINH VIÊN (STUDENT PORTAL — 6 MODULES)
+
+| Module / Trang | Đường dẫn | Chi tiết tính năng người dùng sinh viên |
+|---|---|---|
+| **Bảng Điều Khiển Sinh Viên** | `/student/dashboard` | Cá nhân hóa theo phòng của sinh viên: 4 thẻ KPI phòng (Nhiệt độ, Độ ẩm, Điện tiêu thụ hôm nay, Thiết bị online); Bảng điều khiển 1 chạm (1-Tap Control); Danh sách bạn cùng phòng; Lịch sử quẹt thẻ gần nhất. |
+| **Điều Khiển Rơ-le Phòng** | `/student/devices` | Bật/tắt đèn chiếu sáng, quạt thông gió, khóa/mở chốt cửa phòng từ xa qua MQTT; Giám sát tổng công suất tiêu thụ thời gian thực (Watts). |
+| **Điện Năng & Biểu Giá EVN** | `/student/energy` | Biểu đồ tiêu thụ điện 7 ngày qua; **Bảng kê chi tiết 6 bậc thang điện sinh hoạt EVN 2026** (Bậc 1 đến Bậc 6, VAT 8%); Tự động chia đều hóa đơn theo số sinh viên trong phòng; **Bộ mô phỏng chi phí tương tác (Slider 40-350 kWh)**; Xuất hóa đơn Excel (.xlsx) và In/Lưu PDF chuẩn thanh toán QR. |
+| **Cảnh Báo & Thông Báo** | `/student/alerts` | Tiếp nhận thông báo tiền điện từ BQL; Cảnh báo quá nhiệt/khí gas phòng kèm 3 nút can thiệp khẩn cấp: *Ngắt điện, Bật quạt thông gió, Mở chốt cửa*. |
+| **Hồ Sơ Phòng Ở** | `/student/room` | Thông tin hợp đồng lưu trú, ngày nhận phòng, hạn hợp đồng; Danh bạ sinh viên cùng phòng (MSSV, lớp, số điện thoại bấm gọi ngay). |
+| **Lịch Sử Quẹt Thẻ Cá Nhân** | `/student/access-history` | Xem lại toàn bộ lịch sử quẹt thẻ ra/vào phòng của chính mình kèm mốc thời gian chi tiết. |
+
+---
+
+### 4. TẦNG BẢO MẬT, GIAO THỨC & NỀN TẢNG CỐT LÕI
+
+| Thành phần nền tảng | Công nghệ triển khai | Mục đích & Lợi ích mang lại |
+|---|---|---|
+| **Xác thực & Phân quyền** | `JWT + RBAC Guards` | Bảo vệ toàn bộ API; Sinh viên chỉ xem được phòng của mình (`authorizedRoom`); Admin toàn quyền quản trị toàn trường. |
+| **Bảo Vệ Chống Tấn Công** | `NestJS ThrottlerModule` | Rate Limiting giới hạn tần suất gọi API, chống brute-force mã thẻ RFID và spam lệnh điều khiển thiết bị MQTT. |
+| **Truyền Thông Thời Gian Thực** | `Mosquitto MQTT & Socket.IO` | MQTT xử lý lệnh điều khiển và nhận dữ liệu vi điều khiển ESP32; Socket.IO phát trực tiếp lên Frontend với độ trễ < 50ms. |
+| **Giao Diện Phục Hồi Lỗi** | `Global Error Boundary` | Tệp `frontend/src/app/error.tsx` bắt mọi lỗi JavaScript runtime, cung cấp nút "Thử tải lại" và "Về trang chủ", ngăn chặn 100% màn hình trắng. |
+| **Trải Nghiệm Di Động Native** | `Mobile Bottom Navigation` | Thanh điều hướng đáy 5 tab bám sát màn hình điện thoại; Nút AI Copilot tự động nhấc vị trí và hỗ trợ thu gọn (`–`) vào mép màn hình (Edge Docking). |
+| **Chống Tràn Viền Bảng Dữ Liệu** | `.table-responsive` | Bọc `overflow-x-auto` cho toàn bộ bảng biểu dữ liệu, hỗ trợ vuốt chạm cảm ứng mượt mà trên điện thoại. |
 
 ---
 
@@ -117,39 +142,6 @@ graph TD
 | **Database** | PostgreSQL 16 (Relational/RBAC), InfluxDB 2.7 (Time-series telemetry), SQLite (Dev) |
 | **IoT / Firmware** | C++ ESP32 Firmware, Wokwi Digital Twin Simulator, Mosquitto MQTT Broker |
 | **DevOps & Tooling**| Docker, Docker Compose, Jest (Automated Testing), Git |
-
----
-
-## 📂 Cấu Trúc Thư Mục (Repository Structure)
-
-```
-SmartDorm_SourceCode/
-├── backend/                   # NestJS 10 API & Business Engine
-│   ├── prisma/                # Database schema (Postgres / SQLite) & Seed data
-│   └── src/
-│       ├── analytics/         # EVN 6-tier progressive tariff calculator & exports
-│       ├── devices/           # Device relay control (MQTT Command Client)
-│       ├── emergency/         # PCCC Strategy Pattern (Fire & Gas safety)
-│       ├── gateway/           # Socket.IO Realtime Telemetry Gateway
-│       └── intelligence/      # AI Copilot, ML Client & Benchmark Service
-├── frontend/                  # Next.js 16 Frontend Web Application
-│   └── src/
-│       ├── app/
-│       │   ├── dashboard/     # Quản trị viên KTX (Rooms, Devices, Analytics, Models)
-│       │   ├── student/       # Cổng sinh viên Mobile-First (Bottom Nav, Energy, Alerts)
-│       │   ├── error.tsx      # Global Error Boundary
-│       │   └── not-found.tsx  # Custom 404 Page
-│       └── components/        # UI components, ToastContext, AiAssistantWidget
-├── ml-service/                # FastAPI Machine Learning Microservice
-│   ├── anomaly/               # Isolation Forest anomaly detection
-│   ├── app/api/               # Forecast & Anomaly endpoints
-│   ├── forecasting/           # GBM Champion Forecaster & LSTM Challenger
-│   └── models/                # Serialized model artifacts (.joblib, metrics.json)
-├── docker-compose.yml         # Containerization setup
-├── mosquitto.conf             # MQTT Broker configuration
-├── start.ps1                  # 1-Click Launch Script (Windows PowerShell)
-└── README.md                  # Project Documentation
-```
 
 ---
 
@@ -204,16 +196,14 @@ python -m uvicorn app.main:app --reload --port 8000
 
 ## 🧪 Kiểm Thử Tự Động (Automated Testing)
 
-Toàn bộ hệ thống được bảo vệ bởi bộ kiểm thử tự động toàn diện:
-
 ```bash
-# Kiểm thử toàn diện tầng Intelligence & Automation (18 test cases)
+# Kiểm thử toàn diện tầng Intelligence & Automation (18 test cases PASS)
 npm --prefix backend test src/intelligence/intelligence.spec.ts
 
 # Kiểm thử tính toán tiền điện EVN & CSDL
 npm --prefix backend test
 
-# Kiểm thử cú pháp TypeScript (0 lỗi)
+# Kiểm thử biên dịch TypeScript (0 lỗi)
 npm --prefix frontend run build
 ```
 
