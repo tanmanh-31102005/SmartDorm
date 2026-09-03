@@ -143,3 +143,42 @@ def build_occupancy_features(
         temp
     ], dtype=float)
 
+
+def build_time_series_lag_features(
+    df: pd.DataFrame,
+    target_column: str = "powerW",
+    lag_steps: Optional[List[int]] = None,
+    rolling_windows: Optional[List[int]] = None,
+) -> pd.DataFrame:
+    """
+    Constructs past-only lag and rolling window statistical features.
+    STRICT PREVENTION OF FUTURE DATA LEAKAGE:
+    - Only shifts backward (lags >= 1).
+    - Rolling calculations are strictly shifted by 1 step (closed='left')
+      so the current row's target value is never included in features.
+    """
+    if lag_steps is None:
+        lag_steps = [1, 2, 3, 4, 24]
+    if rolling_windows is None:
+        rolling_windows = [3, 6, 24]
+
+    df_out = df.copy()
+
+    # Extract temporal calendar cyclical features
+    df_out = extract_temporal_features(df_out, time_column="timestamp")
+
+    # Past-only Lags
+    for lag in lag_steps:
+        df_out[f"{target_column}_lag_{lag}"] = df_out[target_column].shift(lag)
+
+    # Past-only Rolling Statistics (Strict shift by 1 to prevent leakage)
+    shifted_target = df_out[target_column].shift(1)
+    for w in rolling_windows:
+        df_out[f"{target_column}_rolling_mean_{w}"] = shifted_target.rolling(window=w, min_periods=1).mean()
+        df_out[f"{target_column}_rolling_std_{w}"] = shifted_target.rolling(window=w, min_periods=1).std().fillna(0.0)
+        df_out[f"{target_column}_rolling_max_{w}"] = shifted_target.rolling(window=w, min_periods=1).max()
+        df_out[f"{target_column}_rolling_min_{w}"] = shifted_target.rolling(window=w, min_periods=1).min()
+
+    return df_out
+
+

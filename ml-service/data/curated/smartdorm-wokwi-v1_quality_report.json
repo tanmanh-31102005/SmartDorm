@@ -1,0 +1,33 @@
+{
+  "datasetId": "smartdorm-wokwi-v1",
+  "evaluatedAt": "2026-08-21T04:03:30.948180+00:00",
+  "totalRecords": 103680,
+  "trainingEligible": true,
+  "status": "VERIFIED",
+  "qualityScores": {
+    "completenessPct": 100.0,
+    "duplicateRate": 0.0,
+    "outOfOrderRate": 0.0,
+    "physicalCompliancePct": 100.0
+  },
+  "violations": {
+    "criticalNullCount": 0,
+    "duplicateTimestampCount": 0,
+    "outOfOrderRecordCount": 0,
+    "invalidTemperatureCount": 0,
+    "invalidHumidityCount": 0,
+    "negativePowerCount": 0,
+    "negativeEnergyDeltaCount": 0,
+    "nonMonotonicCumulativeEnergyCount": 0,
+    "invalidOccupancyCount": 0,
+    "invalidGasReadingCount": 0
+  },
+  "summary": {
+    "uniqueRooms": 24,
+    "minTimestamp": "2026-06-17T00:00:00+00:00",
+    "maxTimestamp": "2026-07-31T23:45:00+00:00",
+    "meanPowerWatts": 207.82,
+    "maxPowerWatts": 1904.3,
+    "meanTemperatureC": 29.29
+  }
+}

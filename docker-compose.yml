@@ -1,6 +1,33 @@
+# ============================================================
+# SmartDorm — Docker Compose
+# Yêu cầu: Tạo file .env.docker từ .env.docker.example
+# Chạy: docker compose --env-file .env.docker up -d
+# ============================================================
+
 services:
   # ==========================================
-  # 0. LOCAL MQTT BROKER (Mosquitto 2.0)
+  # 0. RELATIONAL DATABASE (PostgreSQL 16)
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: smartdorm-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-smartdorm}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-smartdorm_dev_password}
+      - POSTGRES_DB=${POSTGRES_DB:-smartdorm_db}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smartdorm} -d ${POSTGRES_DB:-smartdorm_db}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # 1. LOCAL MQTT BROKER (Mosquitto 2.0)
   # ==========================================
   mosquitto:
     image: eclipse-mosquitto:2.0
@@ -13,7 +40,7 @@ services:
     restart: unless-stopped
 
   # ==========================================
-  # 1. TIME-SERIES DATABASE (InfluxDB 2.7)
+  # 2. TIME-SERIES DATABASE (InfluxDB 2.7)
   # ==========================================
   influxdb:
     image: influxdb:2.7
@@ -25,15 +52,15 @@ services:
       - influxdb-config:/etc/influxdb2
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword123
-      - DOCKER_INFLUXDB_INIT_ORG=smart-dormitory
-      - DOCKER_INFLUXDB_INIT_BUCKET=smart-dormitory-raw
-      - DOCKER_INFLUXDB_INIT_RETENTION=30d
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=smart-dormitory-super-secret-token-12345
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_INIT_USERNAME:-admin}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_INIT_PASSWORD:-adminpassword123}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_INIT_ORG:-smart-dormitory}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_INIT_BUCKET:-smart-dormitory-raw}
+      - DOCKER_INFLUXDB_INIT_RETENTION=${INFLUXDB_INIT_RETENTION:-30d}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_INIT_TOKEN:-smart-dormitory-dev-token-12345}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8086/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -50,9 +77,9 @@ services:
       - "8000:8000"
     environment:
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=smart-dormitory-super-secret-token-12345
-      - INFLUXDB_ORG=smart-dormitory
-      - INFLUXDB_BUCKET=smart-dormitory-raw
+      - INFLUXDB_TOKEN=${INFLUXDB_INIT_TOKEN:-smart-dormitory-dev-token-12345}
+      - INFLUXDB_ORG=${INFLUXDB_INIT_ORG:-smart-dormitory}
+      - INFLUXDB_BUCKET=${INFLUXDB_INIT_BUCKET:-smart-dormitory-raw}
       - DATABASE_URL=sqlite:///app/prisma/dev.db
     volumes:
       - ./backend/prisma:/app/prisma
@@ -75,18 +102,29 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - DATABASE_URL=file:/app/prisma/dev.db
-      - JWT_SECRET=smart_dormitory_jwt_secret_key_2026_super_secure
-      - JWT_EXPIRES_IN=7d
-      - MQTT_BROKER_URL=mqtt://broker.hivemq.com:1883
+      - JWT_SECRET=${JWT_SECRET:-smart_dormitory_jwt_secret_key_2026_super_secure}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - ML_SERVICE_URL=http://ml-service:8000
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=smart-dormitory-super-secret-token-12345
-      - INFLUXDB_ORG=smart-dormitory
-      - INFLUXDB_BUCKET=smart-dormitory-raw
+      - INFLUXDB_TOKEN=${INFLUXDB_INIT_TOKEN:-smart-dormitory-dev-token-12345}
+      - INFLUXDB_ORG=${INFLUXDB_INIT_ORG:-smart-dormitory}
+      - INFLUXDB_BUCKET=${INFLUXDB_INIT_BUCKET:-smart-dormitory-raw}
+      # Tùy chọn — Email, Telegram, AI (để trống nếu không dùng)
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-gemini-1.5-flash}
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
     volumes:
       - ./backend/prisma:/app/prisma
     depends_on:
       - influxdb
+      - mosquitto
       - ml-service
     restart: unless-stopped
 
@@ -109,6 +147,8 @@ services:
     restart: unless-stopped
 
 volumes:
+  postgres-data:
+    name: smartdorm_postgres_data
   influxdb-data:
     name: smartdorm_influxdb_data
   influxdb-config:

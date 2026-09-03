@@ -4,8 +4,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AnalyticsService } from './analytics.service';
 
 @ApiTags('analytics')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('analytics')
 export class AnalyticsController {
   constructor(private analyticsService: AnalyticsService) {}
@@ -35,4 +33,50 @@ export class AnalyticsController {
   @Get('emergency')
   @ApiOperation({ summary: 'Tổng hợp sự cố khẩn cấp' })
   getEmergency() { return this.analyticsService.getEmergencySummary(); }
+
+  // ==================== EXPORT DATA ENDPOINTS ====================
+
+  @Get('export/energy')
+  @ApiOperation({ summary: 'Xuất dữ liệu báo cáo điện năng' })
+  exportEnergy(@Query('building') building?: string, @Query('days') days?: string) {
+    return this.analyticsService.exportEnergyData(building, days ? parseInt(days) : 30);
+  }
+
+  @Get('export/security')
+  @ApiOperation({ summary: 'Xuất dữ liệu kiểm soát an ninh RFID' })
+  exportSecurity(@Query('days') days?: string) {
+    return this.analyticsService.exportSecurityData(days ? parseInt(days) : 7);
+  }
+
+  @Get('export/incidents')
+  @ApiOperation({ summary: 'Xuất dữ liệu sự cố & ứng phó khẩn cấp' })
+  exportIncidents() {
+    return this.analyticsService.exportIncidentData();
+  }
+
+  @Get('export/devices')
+  @ApiOperation({ summary: 'Xuất dữ liệu sức khỏe thiết bị IoT' })
+  exportDevices() {
+    return this.analyticsService.exportDeviceHealthData();
+  }
+
+  @Get('monthly-bill/:roomNumber')
+  @ApiOperation({ summary: 'Tra cứu thông tin hóa đơn tiền điện tháng của phòng sinh viên' })
+  getStudentMonthlyBill(@Param('roomNumber') roomNumber: string) {
+    return this.analyticsService.getStudentMonthlyBill(roomNumber);
+  }
+
+  @Get('calculate-bill')
+  @ApiOperation({ summary: 'Mô phỏng tính tiền điện theo bậc thang EVN 6 bậc và số lượng sinh viên' })
+  calculateBill(@Query('kwh') kwh?: string, @Query('students') students?: string) {
+    const kwhVal = kwh ? parseFloat(kwh) : 100;
+    const studentVal = students ? parseInt(students) : 4;
+    return this.analyticsService.calculateCustomEvnBill(kwhVal, studentVal);
+  }
+
+  @Get('tariff-evn')
+  @ApiOperation({ summary: 'Lấy bảng định mức đơn giá điện sinh hoạt 6 bậc thang EVN' })
+  getTariffEvn() {
+    return this.analyticsService.getEvnTariffTable();
+  }
 }

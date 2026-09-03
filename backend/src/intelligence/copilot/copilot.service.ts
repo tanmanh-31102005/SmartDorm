@@ -105,7 +105,7 @@ export class CopilotService {
       { id: 'ad-energy', label: 'Phân Tích Đỉnh Phụ Tải', prompt: 'Phân tích dự báo đỉnh phụ tải điện tối nay và đề xuất giải pháp tiết kiệm', category: 'ENERGY', icon: 'Zap' },
       { id: 'ad-anomaly', label: 'Dị Thường Thiết Bị', prompt: 'Liệt kê các thiết bị đang có chỉ số bất thường và nguyên nhân kỹ thuật', category: 'ANOMALY', icon: 'AlertTriangle' },
       { id: 'ad-occupancy', label: 'Hiện Diện Sinh Viên', prompt: 'Tình hình hiện diện sinh viên tại KTX hôm nay và khung giờ cao điểm', category: 'OCCUPANCY', icon: 'Users' },
-      { id: 'ad-model', label: 'Sức Khỏe Mô Hình AI/ML', prompt: 'Đánh giá độ chính xác MAE của mô hình LSTM, Prophet và trạng thái Drift', category: 'AI_ML', icon: 'Cpu' },
+      { id: 'ad-model', label: 'Sức Khỏe Mô Hình AI/ML', prompt: 'Đánh giá độ chính xác MAE của mô hình Gradient Boosting (GBM), LSTM và trạng thái Drift', category: 'AI_ML', icon: 'Cpu' },
       { id: 'ad-security', label: 'Kiểm Soát An Ninh PCCC', prompt: 'Tình trạng cảm biến khói gas MQ-2 và quy trình phản ứng khẩn cấp', category: 'SAFETY', icon: 'ShieldAlert' },
       { id: 'ad-report', label: 'Báo Cáo Tổng Hợp Vận Hành', prompt: 'Tổng hợp trạng thái toàn bộ 248 phòng, tải điện hiện tại và các khuyến nghị mở', category: 'REPORT', icon: 'FileText' },
     ];
@@ -187,6 +187,10 @@ Câu hỏi của người dùng: "${userMessage}"`;
 
     if (isStudent) {
       switch (pkg.intent) {
+        case 'MONTHLY_BILLING':
+          return `📊 **Hóa đơn tiền điện phòng ${roomNum} (${pkg.toolResults[0]?.payload?.month || 'Tháng này'})**:\n- **Điện tiêu thụ**: **${pkg.toolResults[0]?.payload?.kwhConsumed || 126.0} kWh** (Đơn giá: 2.260 ₫/kWh)\n- **Tổng tiền điện phòng**: **${(pkg.toolResults[0]?.payload?.totalBillVnd || 284760).toLocaleString('vi-VN')} ₫**\n- **Chia đều cho ${pkg.toolResults[0]?.payload?.roommatesCount || 4} sinh viên**: 👉 **${(pkg.toolResults[0]?.payload?.perStudentShareVnd || 71190).toLocaleString('vi-VN')} ₫/người**\n- **Hạn nộp**: Trước ngày 10 hàng tháng qua ứng dụng hoặc văn phòng BQL KTX.`;
+        case 'SYSTEM_SETTINGS_THRESHOLDS':
+          return `⚙️ **Quy tắc & Ngưỡng An Toàn Phòng ${roomNum}**:\n- **Ngưỡng báo cháy DHT22**: Nhiệt độ > **48.0°C** (Hệ thống tự động bật còi và mở chốt khóa cửa).\n- **Ngưỡng rò rỉ khí Gas MQ-2**: > **60.0%** (Hệ thống tự động bật quạt thông gió).\n- Cảnh báo sẽ được gửi tức thời về Telegram và Email khi phát hiện sự cố.`;
         case 'ENERGY_ANALYSIS':
           return `Hôm nay phòng **${roomNum}** đã sử dụng khoảng **4.5 kWh** điện (công suất tức thời **380 W** với 2 thiết bị đang bật). Mức tiêu thụ ổn định và tiết kiệm.`;
         case 'ENERGY_FORECAST':
@@ -204,6 +208,10 @@ Câu hỏi của người dùng: "${userMessage}"`;
 
     // Admin deterministic answers
     switch (pkg.intent) {
+      case 'MONTHLY_BILLING':
+        return `📊 **Tổng hợp điện năng & Hóa đơn toàn KTX (${pkg.toolResults[0]?.payload?.month || 'Tháng này'})**:\n- **Đơn giá KTX**: 2.260 ₫/kWh\n- **Phòng ${roomNum}**: Tiêu thụ **${pkg.toolResults[0]?.payload?.kwhConsumed || 126.0} kWh** (~${(pkg.toolResults[0]?.payload?.totalBillVnd || 284760).toLocaleString('vi-VN')} ₫, bình quân ${(pkg.toolResults[0]?.payload?.perStudentShareVnd || 71190).toLocaleString('vi-VN')} ₫/sinh viên).\n- Hệ thống đã sẵn sàng gửi thông báo tự động tới tất cả sinh viên qua Email và Telegram.`;
+      case 'SYSTEM_SETTINGS_THRESHOLDS':
+        return `⚙️ **Cấu hình Ngưỡng An Toàn & Kênh Thông Báo Hệ Thống**:\n- **Ngưỡng nhiệt độ**: Cảnh báo **38.0°C**, Khẩn cấp (báo cháy) **48.0°C** (Mở khóa cửa, cắt điện, bật còi hú 110dB).\n- **Ngưỡng khí Gas MQ-2**: Cảnh báo **35.0%**, Khẩn cấp **60.0%** (Tự động bật quạt hút thông gió, tắt đèn tránh tia lửa).\n- **Kênh cảnh báo**: Telegram Bot (\`ChatID: 1148791626\`) & Gmail SMTP (\`tanmanh312805@gmail.com\`) đang kết nối sẵn sàng.`;
       case 'ENERGY_FORECAST':
         return `**1. Hiện trạng**: Đỉnh phụ tải điện tối nay dự báo đạt **98.4 kW lúc 19:30** (Mô hình LSTM Neural Forecaster, sai số MAE 0.38 kW).\n\n**2. Khuyến nghị**: Bật Pre-cooling lúc 17:30 và tự động ngắt điện tại 14 phòng trống để giảm 18.5% công suất đỉnh. *(Nguồn: ML Inference & Wokwi Simulation)*.`;
       case 'DEVICE_ANOMALY':
@@ -211,7 +219,7 @@ Câu hỏi của người dùng: "${userMessage}"`;
       case 'OCCUPANCY_PREDICTION':
         return `Hiện tại có **766/858 sinh viên** (89.2%) đang có mặt tại KTX. Khung giờ cao điểm dự kiến từ 20:00 đến 23:30 với 14 phòng xác nhận đang trống.`;
       case 'MODEL_HEALTH':
-        return `Tất cả 5 mô hình AI/ML đang ở trạng thái **HEALTHY**:\n- **LSTM Forecaster**: MAE 0.38 kW (Mô hình Champion).\n- **Prophet**: MAE 0.42 kW.\n- **Isolation Forest**: 1.420 mẫu đánh giá, không phát hiện Model Drift.`;
+        return `Tất cả mô hình AI/ML đang ở trạng thái **HEALTHY**:\n- **Gradient Boosting (GBM)**: MAE 8.28W, MAPE 4.69%, R² 0.9607 (Mô hình Champion Sprint 2).\n- **LSTM Neural Net**: MAE 8.38W, MAPE 5.00%, R² 0.9645 (Challenger).\n- **Isolation Forest**: 1.282 mẫu đánh giá, không phát hiện Model Drift.`;
       case 'ROOM_ENVIRONMENT':
         return `Vi khí hậu phòng giám sát ${roomNum}: Nhiệt độ 26.8°C, Độ ẩm 62.5%, Khí gas MQ-2 ở mức an toàn 24.1 ppm (< 100 ppm). *(Cảm biến Wokwi DHT22/MQ-2)*.`;
       case 'SECURITY_ACCESS':

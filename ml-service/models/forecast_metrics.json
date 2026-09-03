@@ -1,8 +1,15 @@
 {
-  "mae": 25.17,
-  "rmse": 27.92,
-  "mape": 43.23,
-  "r2Score": 0.7455,
-  "samplesEvaluated": 163,
-  "dataSource": "SIMULATION_DATA"
+  "modelName": "energy-gbm-forecaster",
+  "version": "v3.0-sprint2-multivariate",
+  "datasetVersion": "smartdorm-wokwi-v1",
+  "evaluatedAt": "2026-08-29T06:51:40.583284+00:00",
+  "status": "CHAMPION",
+  "metrics": {
+    "mae": 8.28,
+    "rmse": 12.5,
+    "mape": 4.69,
+    "r2Score": 0.9607,
+    "samplesEvaluated": 162,
+    "dataSource": "WOKWI_SIMULATION"
+  }
 }

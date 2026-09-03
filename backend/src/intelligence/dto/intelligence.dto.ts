@@ -67,7 +67,7 @@ export interface EnergyForecastResponseDto {
   roomId?: string;
   horizonHours: number;
   interval: string;
-  source: 'FASTAPI_PROPHET' | 'BASELINE_PROXY' | 'LSTM_NEURAL_NETWORK' | 'BASELINE_DIURNAL';
+  source: 'GBM_MULTIVARIATE_CHAMPION' | 'FASTAPI_PROPHET' | 'BASELINE_PROXY' | 'LSTM_NEURAL_NETWORK' | 'BASELINE_DIURNAL' | string;
   generatedAt: string;
   summary: {
     totalForecastKwh: number;

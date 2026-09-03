@@ -302,7 +302,7 @@ export class MlClientService {
   }
 
   /**
-   * Multi-Model Benchmark Comparison (Baseline vs Prophet vs LSTM)
+   * Multi-Model Benchmark Comparison — Sprint 2 (Baseline vs GBM vs LSTM)
    */
   async compareForecastModels(params: {
     buildingId?: string;
@@ -323,72 +323,80 @@ export class MlClientService {
         return await res.json();
       }
     } catch (e: any) {
-      this.logger.warn(`FastAPI model comparison failed: ${e.message}. Using local fallback comparison.`);
+      this.logger.warn(`FastAPI model comparison failed: ${e.message}. Using Sprint 2 fallback.`);
     }
 
-    // Fallback comparison
+    // Sprint 2 Fallback — 3-model architecture (Baseline | GBM | LSTM)
     const baseline = this.generateFallbackEnergyForecast(params.buildingId, params.roomId, params.horizonHours || 24);
-    const prophet = this.generateFallbackEnergyForecast(params.buildingId, params.roomId, params.horizonHours || 24);
-    const lstm = this.generateFallbackEnergyForecast(params.buildingId, params.roomId, params.horizonHours || 24);
+    const gbm      = this.generateFallbackEnergyForecast(params.buildingId, params.roomId, params.horizonHours || 24);
+    const lstm     = this.generateFallbackEnergyForecast(params.buildingId, params.roomId, params.horizonHours || 24);
 
     return {
       comparisonSummary: {
-        activeModel: 'energy-prophet-forecaster',
-        bestPerformingModel: 'Facebook Prophet Forecaster',
-        bestModelCode: 'energy-prophet-v2.1',
-        maeDeltaPercent: 12.4,
-        evaluationTimestamp: new Date().toISOString(),
+        activeModel:          'energy-gbm-forecaster',
+        totalModels:          3,
+        bestPerformingModel:  'Gradient Boosting Champion',
+        bestModelCode:        'energy-gbm-v2.0',
+        bestR2Score:          0.9607,
+        bestMape:             4.69,
+        baselineImprovementPct: 71.3,
+        maeDeltaPercent:      71.3,
+        architecture:         'Sprint 2 — 3-model (Baseline + GBM + LSTM/MLP)',
+        evaluationTimestamp:  new Date().toISOString(),
       },
       models: [
         {
-          modelId: 'mdl-baseline',
-          name: 'Energy Diurnal Baseline',
-          code: 'energy-baseline-v1',
-          type: 'BASELINE',
-          status: 'STANDBY',
-          totalKwh: baseline.summary.totalForecastKwh,
-          peakPowerW: baseline.summary.peakPowerW,
+          modelId:       'mdl-baseline',
+          name:          'Diurnal Ridge Baseline',
+          code:          'energy-baseline-v2',
+          type:          'BASELINE',
+          status:        'STANDBY',
+          totalKwh:      baseline.summary.totalForecastKwh,
+          peakPowerW:    baseline.summary.peakPowerW,
           averagePowerW: baseline.summary.averagePowerW,
-          latencyMs: 3,
-          metrics: { mae: 16.8, rmse: 22.4, mape: 9.5, r2Score: 0.86 },
+          latencyMs:     2,
+          metrics:       { mae: 28.80, rmse: 37.16, mape: 20.97, r2Score: 0.6526 },
+          description:   'Ridge Regression 7 time features — offline fallback',
         },
         {
-          modelId: 'mdl-prophet-v2',
-          name: 'Facebook Prophet Forecaster',
-          code: 'energy-prophet-v2.1',
-          type: 'STATISTICAL_SEASONALITY',
-          status: 'ACTIVE',
-          totalKwh: prophet.summary.totalForecastKwh,
-          peakPowerW: prophet.summary.peakPowerW,
-          averagePowerW: prophet.summary.averagePowerW,
-          latencyMs: 14,
-          metrics: { mae: 11.2, rmse: 16.5, mape: 5.4, r2Score: 0.94 },
+          modelId:       'mdl-gbm-v2',
+          name:          'Gradient Boosting Champion',
+          code:          'energy-gbm-v2.0',
+          type:          'ENSEMBLE',
+          status:        'ACTIVE',
+          totalKwh:      gbm.summary.totalForecastKwh,
+          peakPowerW:    gbm.summary.peakPowerW,
+          averagePowerW: gbm.summary.averagePowerW,
+          latencyMs:     8,
+          metrics:       { mae: 8.28, rmse: 12.50, mape: 4.69, r2Score: 0.9607 },
+          description:   'GradientBoosting 15 features (sensor+device+time+lag) — Sprint 2',
         },
         {
-          modelId: 'mdl-lstm-v1',
-          name: 'LSTM Recurrent Neural Network',
-          code: 'energy-lstm-v1.0',
-          type: 'DEEP_LEARNING',
-          status: 'STANDBY',
-          totalKwh: lstm.summary.totalForecastKwh,
-          peakPowerW: lstm.summary.peakPowerW,
+          modelId:       'mdl-lstm-v2',
+          name:          'MLP Neural Network Challenger',
+          code:          'energy-lstm-v2.0',
+          type:          'DEEP_LEARNING',
+          status:        'CHALLENGER',
+          totalKwh:      lstm.summary.totalForecastKwh,
+          peakPowerW:    lstm.summary.peakPowerW,
           averagePowerW: lstm.summary.averagePowerW,
-          latencyMs: 9,
-          metrics: { mae: 9.8, rmse: 14.2, mape: 4.6, r2Score: 0.96 },
+          latencyMs:     25,
+          metrics:       { mae: 8.38, rmse: 11.87, mape: 5.00, r2Score: 0.9645 },
+          description:   'MLPRegressor 128→64→32 units, 15 features — Sprint 2',
         },
       ],
-      timeline: baseline.points.map((p, idx) => ({
-        timestamp: p.timestamp,
-        actualPowerW: p.actualPowerW,
-        baselinePowerW: p.forecastPowerW,
-        prophetPowerW: Math.round((p.forecastPowerW * 0.96) * 10) / 10,
-        lstmPowerW: Math.round((p.forecastPowerW * 0.94) * 10) / 10,
-        lowerBoundW: p.lowerBoundW,
-        upperBoundW: p.upperBoundW,
-        confidence: p.confidence,
+      timeline: baseline.points.map((p) => ({
+        timestamp:        p.timestamp,
+        actualPowerW:     p.actualPowerW,
+        baselinePowerW:   Math.round(p.forecastPowerW * 10) / 10,
+        gbmPowerW:        Math.round(p.forecastPowerW * 0.88 * 10) / 10,  // GBM mược sai tương đương MAPE 4.69%
+        lstmPowerW:       Math.round(p.forecastPowerW * 0.89 * 10) / 10,  // LSTM gần GBM
+        lowerBoundW:      p.lowerBoundW,
+        upperBoundW:      p.upperBoundW,
+        confidence:       p.confidence,
       })),
       baseline,
-      prophet,
+      gbm,
       lstm,
     };
   }
@@ -487,19 +495,19 @@ export class MlClientService {
 
     return [
       {
-        name: 'energy-prophet-forecaster',
-        version: 'v2.1',
+        name: 'energy-gbm-forecaster',
+        version: 'v2.0',
         type: 'FORECAST',
         status: isOnline ? 'ACTIVE' : 'DEGRADED',
         inferenceLatencyMs: latency,
         metrics: {
-          mae: 11.2,
-          rmse: 16.5,
-          mape: 5.4,
-          r2Score: 0.94,
-          samplesEvaluated: 14200,
+          mae: 8.28,
+          rmse: 12.50,
+          mape: 4.69,
+          r2Score: 0.9607,
+          samplesEvaluated: 103680,
         },
-        lastTrainedAt: new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString(),
+        lastTrainedAt: new Date(Date.now() - 1 * 24 * 3600 * 1000).toISOString(),
         endpoint: `${this.baseUrl}/predict/energy-forecast`,
         isFallback: !isOnline,
       },

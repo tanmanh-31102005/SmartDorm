@@ -1,6 +1,6 @@
 """
 Automated Scheduled Retraining Pipeline (Daily / Weekly MLOps Job).
-Extracts latest telemetry, trains all 3 domains, evaluates test metrics, and auto-promotes models.
+Extracts latest approved telemetry, trains all 3 domains, evaluates test metrics, and auto-promotes models.
 """
 import os
 import sys
@@ -23,7 +23,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger("retraining_job")
 
 
-def run_full_retraining_pipeline(output_dir: str = str(ML_ROOT / "models")) -> dict:
+def run_full_retraining_pipeline(
+    dataset_file: str = str(ML_ROOT / "data" / "curated" / "smartdorm-wokwi-v1.csv"),
+    output_dir: str = str(ML_ROOT / "models"),
+) -> dict:
     """
     Executes end-to-end retraining for:
       1. Energy Forecasting (Baseline vs Prophet vs LSTM)
@@ -32,43 +35,40 @@ def run_full_retraining_pipeline(output_dir: str = str(ML_ROOT / "models")) -> d
     """
     logger.info("==========================================================")
     logger.info("  🚀 Starting SmartDorm Automated Retraining Pipeline")
+    logger.info("  Dataset: %s", dataset_file)
     logger.info("  Timestamp: %s", datetime.now(timezone.utc).isoformat())
     logger.info("==========================================================")
 
     start_time = datetime.now(timezone.utc)
 
     # 1. Forecast Retraining
-    forecast_report = run_forecast_training(output_dir=output_dir, days_history=45)
+    forecast_report = run_forecast_training(dataset_file=dataset_file, output_dir=output_dir)
 
     # 2. Anomaly Retraining
-    anomaly_report = run_anomaly_training(output_dir=output_dir, n_samples=6000)
+    anomaly_report = run_anomaly_training(dataset_file=dataset_file, output_dir=output_dir)
 
     # 3. Occupancy Retraining
-    occupancy_report = run_occupancy_training(output_dir=output_dir)
-
-    # 4. Update in-memory registry
-    registry = get_model_registry()
-    registry.update_metrics("energy-prophet-forecaster", forecast_report.get("models", {}).get("Prophet", {}))
-    registry.update_metrics("energy-lstm-forecaster", forecast_report.get("models", {}).get("LSTM", {}))
-    registry.update_metrics("device-isolation-forest", anomaly_report)
-    registry.update_metrics("occupancy-classifier", occupancy_report)
+    occupancy_report = run_occupancy_training(dataset_file=dataset_file, output_dir=output_dir)
 
     summary = {
         "status": "COMPLETED",
         "startedAt": start_time.isoformat(),
         "completedAt": datetime.now(timezone.utc).isoformat(),
         "durationSeconds": round((datetime.now(timezone.utc) - start_time).total_seconds(), 2),
-        "forecastBestModel": forecast_report.get("bestModel"),
-        "forecastMetrics": forecast_report.get("models"),
-        "anomalyF1Score": anomaly_report.get("f1Score"),
-        "occupancyAccuracy": occupancy_report.get("accuracy"),
+        "datasetVersion": "smartdorm-wokwi-v1",
+        "forecastChampion": forecast_report.get("promotionDecision", {}).get("champion"),
+        "forecastModels": forecast_report.get("models"),
+        "anomalyModel": anomaly_report.get("modelName"),
+        "anomalyMetrics": anomaly_report.get("metrics"),
+        "occupancyModel": occupancy_report.get("modelName"),
+        "occupancyMetrics": occupancy_report.get("metrics"),
     }
 
     report_path = Path(output_dir) / "retraining_summary.json"
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
 
-    logger.info("Retraining job completed successfully in %.2fs. Report: %s", summary["durationSeconds"], report_path)
+    logger.info("✅ Full Retraining job completed successfully in %.2fs. Report: %s", summary["durationSeconds"], report_path)
     return summary
 
 

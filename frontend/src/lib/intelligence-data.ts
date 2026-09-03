@@ -99,7 +99,7 @@ export interface EnergyForecastPoint {
   lowerBound: number;
   upperBound: number;
   baseline: number;
-  prophet?: number;
+  gbm?: number;    // Gradient Boosting Champion (Sprint 2)
   lstm?: number;
 }
 
@@ -114,7 +114,7 @@ export interface ModelBenchmarkComparison {
     name: string;
     code: string;
     type: string;
-    status: 'ACTIVE' | 'STANDBY' | 'EXPERIMENTAL';
+    status: 'ACTIVE' | 'STANDBY' | 'EXPERIMENTAL' | 'CHALLENGER';
     totalKwh: number;
     peakPowerW: number;
     averagePowerW: number;
@@ -134,22 +134,22 @@ export interface ModelBenchmarkComparison {
 // -------------------------------------------------------------
 export const AI_MODELS_DATA: ModelMetric[] = [
   {
-    id: 'mdl-prophet-v2',
-    name: 'Prophet Energy Forecaster',
-    code: 'prophet_load_v2.pkl',
-    version: 'v2.4.1',
+    id: 'mdl-gbm-v2',
+    name: 'Gradient Boosting Forecaster',
+    code: 'energy_gbm_v2.0.joblib',
+    version: 'v2.0.0',
     type: 'FORECAST',
     status: 'ACTIVE',
-    trainedAt: '2026-08-11T04:00:00Z',
-    datasetRange: '01/01/2026 - 10/08/2026 (1.42M points)',
-    trainingSamples: 1420800,
-    mae: 0.42,
-    rmse: 0.68,
-    mape: 3.82,
-    r2: 0.946,
-    latencyMs: 18,
-    features: ['hour_of_day', 'day_of_week', 'is_weekend', 'temperature_ambient', 'historical_lag_24h', 'historical_lag_168h'],
-    description: 'Mô hình chuỗi thời gian phân tách mùa vụ dự báo phụ tải điện năng 24h/7d với khoảng tin cậy 95%.',
+    trainedAt: '2026-08-29T06:50:48Z',
+    datasetRange: 'smartdorm-wokwi-v1 (103,680 records)',
+    trainingSamples: 103680,
+    mae: 8.28,
+    rmse: 12.50,
+    mape: 4.69,
+    r2: 0.9607,
+    latencyMs: 8,
+    features: ['sin_hour', 'cos_hour', 'sin_dow', 'cos_dow', 'is_weekend', 'is_night', 'is_class_time', 'temperature_norm', 'humidity_norm', 'gas_level_norm', 'light_on', 'fan_on', 'occupancy_signal', 'power_lag_1h', 'power_lag_24h'],
+    description: 'Mô hình Gradient Boosting Champion với 15 đặc trưng đa biến (cảm biến môi trường, trạng thái thiết bị và độ trễ).',
     isStale: false,
   },
   {
@@ -232,50 +232,50 @@ export const AI_MODELS_DATA: ModelMetric[] = [
 // Model Benchmark Comparison Data
 // -------------------------------------------------------------
 export const MODEL_BENCHMARK_COMPARISON: ModelBenchmarkComparison = {
-  activeModel: 'Prophet Energy Forecaster',
-  bestPerformingModel: 'LSTM Neural Network Forecaster',
-  bestModelCode: 'energy_lstm_v1.0.joblib',
-  maeDeltaPercent: 9.5,
-  evaluationTimestamp: '2026-08-18T11:50:00Z',
+  activeModel: 'Gradient Boosting Champion',
+  bestPerformingModel: 'Gradient Boosting Champion',
+  bestModelCode: 'energy-gbm-v2.0',
+  maeDeltaPercent: 71.3,
+  evaluationTimestamp: '2026-08-29T06:50:48Z',
   models: [
     {
-      modelId: 'mdl-baseline-v1',
-      name: 'Moving Average Baseline',
-      code: 'seasonal_baseline_v1.0',
+      modelId: 'mdl-baseline',
+      name: 'Diurnal Ridge Baseline',
+      code: 'energy-baseline-v2',
       type: 'BASELINE',
       status: 'STANDBY',
-      totalKwh: 142.5,
-      peakPowerW: 106.8,
-      averagePowerW: 68.2,
-      latencyMs: 3,
-      metrics: { mae: 1.15, rmse: 1.84, mape: 9.45, r2Score: 0.812 },
+      totalKwh: 4.18,
+      peakPowerW: 202.5,
+      averagePowerW: 174.2,
+      latencyMs: 2,
+      metrics: { mae: 28.80, rmse: 37.16, mape: 20.97, r2Score: 0.6526 },
       recommendedFor: 'Thiết bị nhúng tài nguyên thấp / Dự phòng ngoại tuyến tức thời',
     },
     {
-      modelId: 'mdl-prophet-v2',
-      name: 'Prophet Energy Forecaster',
-      code: 'prophet_load_v2.pkl',
-      type: 'STATISTICAL_SEASONALITY',
+      modelId: 'mdl-gbm-v2',
+      name: 'Gradient Boosting Champion',
+      code: 'energy-gbm-v2.0',
+      type: 'ENSEMBLE',
       status: 'ACTIVE',
-      totalKwh: 136.2,
-      peakPowerW: 98.4,
-      averagePowerW: 64.1,
-      latencyMs: 18,
-      metrics: { mae: 0.42, rmse: 0.68, mape: 3.82, r2Score: 0.946 },
-      recommendedFor: 'Dự báo dài hạn 7-30 ngày và phân tách xu hướng mùa vụ / ngày lễ',
+      totalKwh: 3.48,
+      peakPowerW: 201.8,
+      averagePowerW: 145.0,
+      latencyMs: 8,
+      metrics: { mae: 8.28, rmse: 12.50, mape: 4.69, r2Score: 0.9607 },
+      recommendedFor: 'Dự báo 24h với sensor + device context (Sprint 2 — 15 features)',
     },
     {
-      modelId: 'mdl-lstm-v1',
-      name: 'LSTM Neural Network Forecaster',
-      code: 'energy_lstm_v1.0.joblib',
+      modelId: 'mdl-lstm-v2',
+      name: 'MLP Neural Network Challenger',
+      code: 'energy-lstm-v2.0',
       type: 'DEEP_LEARNING',
-      status: 'STANDBY',
-      totalKwh: 134.8,
-      peakPowerW: 96.2,
-      averagePowerW: 63.5,
-      latencyMs: 9,
-      metrics: { mae: 0.38, rmse: 0.61, mape: 3.45, r2Score: 0.962 },
-      recommendedFor: 'Dự báo ngắn hạn 24h phụ tải phức tạp phi tuyến tính',
+      status: 'CHALLENGER',
+      totalKwh: 3.51,
+      peakPowerW: 200.1,
+      averagePowerW: 146.3,
+      latencyMs: 25,
+      metrics: { mae: 8.38, rmse: 11.87, mape: 5.00, r2Score: 0.9645 },
+      recommendedFor: 'Dự báo ngắn hạn 24h phụ tải phi tuyến tính (15 features)',
     },
   ],
 };
@@ -402,7 +402,7 @@ export const AI_RECOMMENDATIONS_DATA: AIRecommendation[] = [
     severity: 'HIGH',
     title: 'Kích hoạt chính sách Pre-cooling điều hòa Tòa A trước giờ cao điểm',
     description: 'Dự báo lúc 19:30 phụ tải đỉnh sẽ đạt 106.8 kW (trùng giờ nấu ăn và bật điều hòa). Kích hoạt làm lạnh sớm 1°C từ 17:30 giúp cắt đỉnh tải.',
-    reason: 'Prophet + LSTM dự báo đỉnh tải giờ cao điểm với độ tin cậy 94.6%. Phân bổ nhiệt lượng sớm giảm 18.5% chi phí điện giá cao.',
+    reason: 'GBM + LSTM dự báo đỉnh tải giờ cao điểm với độ tin cậy 96.1%. Phân bổ nhiệt lượng sớm giảm 18.5% chi phí điện giá cao.',
     evidence: [
       'Dự báo phụ tải đỉnh: 106.8 kW lúc 19:30 - 21:00.',
       'Khối lượng nhiệt tích lũy tòa nhà cho phép giữ nhiệt độ mát trong 2.5 giờ.',
@@ -469,33 +469,33 @@ export const HOURLY_OCCUPANCY_CURVE = [
 ];
 
 export const ENERGY_FORECAST_24H: EnergyForecastPoint[] = [
-  { time: '00:00', actual: 48.2, forecast: 47.8, lowerBound: 44.5, upperBound: 51.2, baseline: 52.0, prophet: 47.8, lstm: 47.2 },
-  { time: '02:00', actual: 39.5, forecast: 40.1, lowerBound: 37.0, upperBound: 43.2, baseline: 44.1, prophet: 40.1, lstm: 39.8 },
-  { time: '04:00', actual: 36.1, forecast: 36.8, lowerBound: 34.0, upperBound: 39.5, baseline: 39.8, prophet: 36.8, lstm: 36.4 },
-  { time: '06:00', actual: 49.8, forecast: 51.2, lowerBound: 47.5, upperBound: 54.8, baseline: 54.0, prophet: 51.2, lstm: 50.8 },
-  { time: '08:00', actual: 68.4, forecast: 67.2, lowerBound: 62.5, upperBound: 71.9, baseline: 74.5, prophet: 67.2, lstm: 66.5 },
-  { time: '10:00', actual: 74.1, forecast: 75.0, lowerBound: 70.2, upperBound: 79.8, baseline: 82.0, prophet: 75.0, lstm: 74.2 },
-  { time: '12:00', actual: 88.5, forecast: 89.2, lowerBound: 83.5, upperBound: 94.8, baseline: 95.2, prophet: 89.2, lstm: 88.1 },
-  { time: '14:00', actual: 79.2, forecast: 78.4, lowerBound: 73.0, upperBound: 83.8, baseline: 84.6, prophet: 78.4, lstm: 77.9 },
-  { time: '16:00', actual: 81.6, forecast: 82.5, lowerBound: 77.0, upperBound: 88.0, baseline: 89.0, prophet: 82.5, lstm: 81.8 },
-  { time: '18:00', actual: 91.2, forecast: 92.4, lowerBound: 86.5, upperBound: 98.3, baseline: 99.4, prophet: 92.4, lstm: 91.5 },
-  { time: '20:00', actual: undefined, forecast: 98.4, lowerBound: 91.2, upperBound: 105.6, baseline: 106.8, prophet: 98.4, lstm: 96.8 },
-  { time: '22:00', actual: undefined, forecast: 86.1, lowerBound: 79.8, upperBound: 92.4, baseline: 94.2, prophet: 86.1, lstm: 85.2 },
+  { time: '00:00', actual: 48.2,  forecast: 47.8,  lowerBound: 44.5,  upperBound: 51.2,  baseline: 52.0,  gbm: 47.8,  lstm: 47.2 },
+  { time: '02:00', actual: 39.5,  forecast: 40.1,  lowerBound: 37.0,  upperBound: 43.2,  baseline: 44.1,  gbm: 40.1,  lstm: 39.8 },
+  { time: '04:00', actual: 36.1,  forecast: 36.8,  lowerBound: 34.0,  upperBound: 39.5,  baseline: 39.8,  gbm: 36.8,  lstm: 36.4 },
+  { time: '06:00', actual: 49.8,  forecast: 51.2,  lowerBound: 47.5,  upperBound: 54.8,  baseline: 54.0,  gbm: 51.2,  lstm: 50.8 },
+  { time: '08:00', actual: 68.4,  forecast: 67.2,  lowerBound: 62.5,  upperBound: 71.9,  baseline: 74.5,  gbm: 67.2,  lstm: 66.5 },
+  { time: '10:00', actual: 74.1,  forecast: 75.0,  lowerBound: 70.2,  upperBound: 79.8,  baseline: 82.0,  gbm: 75.0,  lstm: 74.2 },
+  { time: '12:00', actual: 88.5,  forecast: 89.2,  lowerBound: 83.5,  upperBound: 94.8,  baseline: 95.2,  gbm: 89.2,  lstm: 88.1 },
+  { time: '14:00', actual: 79.2,  forecast: 78.4,  lowerBound: 73.0,  upperBound: 83.8,  baseline: 84.6,  gbm: 78.4,  lstm: 77.9 },
+  { time: '16:00', actual: 81.6,  forecast: 82.5,  lowerBound: 77.0,  upperBound: 88.0,  baseline: 89.0,  gbm: 82.5,  lstm: 81.8 },
+  { time: '18:00', actual: 91.2,  forecast: 92.4,  lowerBound: 86.5,  upperBound: 98.3,  baseline: 99.4,  gbm: 92.4,  lstm: 91.5 },
+  { time: '20:00', actual: undefined, forecast: 98.4, lowerBound: 91.2, upperBound: 105.6, baseline: 106.8, gbm: 98.4,  lstm: 96.8 },
+  { time: '22:00', actual: undefined, forecast: 86.1, lowerBound: 79.8, upperBound: 92.4,  baseline: 94.2,  gbm: 86.1,  lstm: 85.2 },
 ];
 
 export const ENERGY_FORECAST_7D: EnergyForecastPoint[] = [
-  { time: 'T2 (10/08)', actual: 18420, forecast: 18250, lowerBound: 17400, upperBound: 19100, baseline: 19800, prophet: 18250, lstm: 18120 },
-  { time: 'T3 (11/08)', actual: 18910, forecast: 18800, lowerBound: 17950, upperBound: 19650, baseline: 20200, prophet: 18800, lstm: 18650 },
-  { time: 'T4 (12/08)', actual: 18120, forecast: 18300, lowerBound: 17500, upperBound: 19100, baseline: 19750, prophet: 18300, lstm: 18190 },
-  { time: 'T5 (13/08)', actual: 19040, forecast: 18950, lowerBound: 18100, upperBound: 19800, baseline: 20400, prophet: 18950, lstm: 18800 },
-  { time: 'T6 (14/08)', actual: 19560, forecast: 19400, lowerBound: 18500, upperBound: 20300, baseline: 20900, prophet: 19400, lstm: 19280 },
-  { time: 'T7 (15/08)', actual: 16820, forecast: 16900, lowerBound: 16100, upperBound: 17700, baseline: 18200, prophet: 16900, lstm: 16750 },
-  { time: 'CN (16/08)', actual: undefined, forecast: 17250, lowerBound: 16400, upperBound: 18100, baseline: 18600, prophet: 17250, lstm: 17100 },
+  { time: 'T2 (10/08)', actual: 18420, forecast: 18250, lowerBound: 17400, upperBound: 19100, baseline: 19800, gbm: 18250, lstm: 18120 },
+  { time: 'T3 (11/08)', actual: 18910, forecast: 18800, lowerBound: 17950, upperBound: 19650, baseline: 20200, gbm: 18800, lstm: 18650 },
+  { time: 'T4 (12/08)', actual: 18120, forecast: 18300, lowerBound: 17500, upperBound: 19100, baseline: 19750, gbm: 18300, lstm: 18190 },
+  { time: 'T5 (13/08)', actual: 19040, forecast: 18950, lowerBound: 18100, upperBound: 19800, baseline: 20400, gbm: 18950, lstm: 18800 },
+  { time: 'T6 (14/08)', actual: 19560, forecast: 19400, lowerBound: 18500, upperBound: 20300, baseline: 20900, gbm: 19400, lstm: 19280 },
+  { time: 'T7 (15/08)', actual: 16820, forecast: 16900, lowerBound: 16100, upperBound: 17700, baseline: 18200, gbm: 16900, lstm: 16750 },
+  { time: 'CN (16/08)', actual: undefined, forecast: 17250, lowerBound: 16400, upperBound: 18100, baseline: 18600, gbm: 17250, lstm: 17100 },
 ];
 
 export const ENERGY_FORECAST_30D: EnergyForecastPoint[] = [
-  { time: 'Tuần 1', actual: 124500, forecast: 123800, lowerBound: 118000, upperBound: 129600, baseline: 134000, prophet: 123800, lstm: 122900 },
-  { time: 'Tuần 2', actual: 128900, forecast: 127600, lowerBound: 121500, upperBound: 133700, baseline: 138500, prophet: 127600, lstm: 126400 },
-  { time: 'Tuần 3', actual: undefined, forecast: 126400, lowerBound: 119800, upperBound: 133000, baseline: 136800, prophet: 126400, lstm: 125100 },
-  { time: 'Tuần 4', actual: undefined, forecast: 129200, lowerBound: 122000, upperBound: 136400, baseline: 139500, prophet: 129200, lstm: 127900 },
+  { time: 'Tuần 1', actual: 124500, forecast: 123800, lowerBound: 118000, upperBound: 129600, baseline: 134000, gbm: 123800, lstm: 122900 },
+  { time: 'Tuần 2', actual: 128900, forecast: 127600, lowerBound: 121500, upperBound: 133700, baseline: 138500, gbm: 127600, lstm: 126400 },
+  { time: 'Tuần 3', actual: undefined, forecast: 126400, lowerBound: 119800, upperBound: 133000, baseline: 136800, gbm: 126400, lstm: 125100 },
+  { time: 'Tuần 4', actual: undefined, forecast: 129200, lowerBound: 122000, upperBound: 136400, baseline: 139500, gbm: 129200, lstm: 127900 },
 ];

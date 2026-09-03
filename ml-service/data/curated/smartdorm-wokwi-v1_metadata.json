@@ -1,0 +1,28 @@
+{
+  "datasetId": "ds-smartdorm-wokwi-v1",
+  "datasetVersion": "smartdorm-wokwi-v1",
+  "source": "WOKWI",
+  "simulationRunId": "sim-smartdorm-wokwi-v1-42",
+  "startDate": "2026-06-17T00:00:00+00:00",
+  "endDate": "2026-08-01T00:00:00+00:00",
+  "roomCount": 24,
+  "deviceCount": 72,
+  "recordCount": 103680,
+  "samplingRateMinutes": 15,
+  "scenarioDistribution": {
+    "NORMAL_DAY": 33,
+    "WEEKEND": 12,
+    "ENERGY_WASTE": 8,
+    "LIGHT_FORGOTTEN_ON": 0,
+    "FAN_FORGOTTEN_ON": 0,
+    "POWER_SPIKE": 5,
+    "GAS_LEAK": 3,
+    "SENSOR_DROPOUT": 0,
+    "INVALID_RFID": 0
+  },
+  "generatorVersion": "v1.2-scenario-engine",
+  "seed": 42,
+  "createdAt": "2026-08-21T04:03:27.717132+00:00",
+  "datasetFile": "smartdorm-wokwi-v1.csv",
+  "status": "SIMULATION_ONLY"
+}

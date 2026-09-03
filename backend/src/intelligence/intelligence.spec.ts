@@ -266,7 +266,7 @@ describe('Intelligence & Automation Layer (NestJS)', () => {
       const forecast = await mlClientService.predictEnergyForecast({ horizonHours: 24 });
       expect(forecast).toBeDefined();
       expect(forecast.points.length).toBe(24);
-      expect(['BASELINE_PROXY', 'FASTAPI_PROPHET']).toContain(forecast.source);
+      expect(['BASELINE_PROXY', 'FASTAPI_PROPHET', 'GBM_MULTIVARIATE_CHAMPION']).toContain(forecast.source);
       expect(forecast.summary.totalForecastKwh).toBeGreaterThan(0);
       expect(forecast.points[0]).toHaveProperty('forecastPowerW');
       expect(forecast.points[0]).toHaveProperty('confidence');
@@ -279,13 +279,13 @@ describe('Intelligence & Automation Layer (NestJS)', () => {
       expect(lstmForecast.summary.totalForecastKwh).toBeGreaterThan(0);
     });
 
-    it('should perform 3-model benchmark comparison (Baseline vs Prophet vs LSTM)', async () => {
+    it('should perform 3-model benchmark comparison (Baseline vs GBM vs LSTM)', async () => {
       const comparison = await mlClientService.compareForecastModels({ horizonHours: 24 });
       expect(comparison).toBeDefined();
       expect(comparison.models.length).toBe(3);
       expect(comparison.timeline.length).toBe(24);
       expect(comparison.timeline[0]).toHaveProperty('baselinePowerW');
-      expect(comparison.timeline[0]).toHaveProperty('prophetPowerW');
+      expect(comparison.timeline[0]).toHaveProperty('gbmPowerW');
       expect(comparison.timeline[0]).toHaveProperty('lstmPowerW');
     });
 

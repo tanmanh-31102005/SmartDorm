@@ -17,6 +17,20 @@ export class SendCommandDto {
 }
 
 
+export class DirectCommandDto {
+  @ApiProperty({ example: '101', description: 'Room ID or Room Number (e.g. 101, A-101)' })
+  @IsString()
+  roomId: string;
+
+  @ApiProperty({ example: 'LIGHT', description: 'LIGHT | FAN | DOOR_LOCK | BUZZER' })
+  @IsString()
+  deviceType: string;
+
+  @ApiProperty({ example: 'on', description: 'on | off | unlock | lock' })
+  @IsString()
+  action: string;
+}
+
 @ApiTags('devices')
 @Controller('devices')
 export class DevicesController {
@@ -26,6 +40,13 @@ export class DevicesController {
   @ApiOperation({ summary: 'Lấy danh sách thiết bị theo phòng' })
   getByRoom(@Param('roomId') roomId: string) {
     return this.devicesService.getDevicesByRoom(roomId);
+  }
+
+  @Post('command')
+  @ApiOperation({ summary: 'Gửi lệnh điều khiển thiết bị trực tiếp (Hỗ trợ cả Admin & Sinh viên)' })
+  @ApiBody({ type: DirectCommandDto })
+  directCommand(@Body() body: DirectCommandDto, @Request() req: any) {
+    return this.devicesService.sendCommand(body.roomId, body.deviceType, body.action, req.user?.id);
   }
 
   @Post('room/:roomId/command')

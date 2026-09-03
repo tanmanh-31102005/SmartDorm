@@ -8,10 +8,22 @@ node_modules/
 .env
 .env.local
 .env.*.local
+.env.docker       # Docker credentials — chứa thông tin nhạy cảm thật sự
 *.env
 !.env.example
+!.env.docker.example
 !backend/.env.example
 !frontend/.env.example
+
+# MQTT Password File — chứa thông tin xác thực MQTT
+mosquitto_passwd
+
+# ML Model Artifacts — thường > 100MB, không commit lên git
+ml-service/models/*.joblib
+ml-service/models/*.pkl
+ml-service/models/*.pt
+ml-service/models/*.h5
+
 
 # Next.js Build & Cache
 .next/
@@ -57,3 +69,6 @@ Thumbs.db
 *.zip
 *.tar.gz
 *.rar
+
+# Backups
+backups/

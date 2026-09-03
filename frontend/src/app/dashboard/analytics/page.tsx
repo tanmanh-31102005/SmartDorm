@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import * as XLSX from 'xlsx';
 import api from '@/lib/api';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { Badge } from '@/components/ui/Badge';
@@ -21,14 +22,16 @@ import {
   Sparkles,
   Zap,
   Activity,
-  Layers
+  Layers,
+  FileSpreadsheet,
+  FileType
 } from 'lucide-react';
 
 const COLORS = ['#1e3a8a', '#059669', '#d97706', '#dc2626', '#7c3aed'];
 
 export default function AnalyticsPage() {
-  const { success } = useToast();
-  const [loading, setLoading] = useState(false);
+  const { success, error, info } = useToast();
+  const [exporting, setExporting] = useState<string | null>(null);
 
   const accessPieData = [
     { name: 'Thẻ Hợp Lệ (Authorized)', value: 1280, color: '#059669' },
@@ -52,8 +55,221 @@ export default function AnalyticsPage() {
     { day: 'CN', lights: 99.8, fans: 99.3, locks: 100 },
   ];
 
-  function handleExport() {
-    success('Đang xuất dữ liệu phân tích sang định dạng CSV/Excel...', 'Xuất Dữ Liệu');
+  async function handleExportXLSX() {
+    setExporting('XLSX');
+    try {
+      // 1. Fetch live energy and incident data from backend
+      const [energyRes, securityRes, incidentRes, deviceRes] = await Promise.allSettled([
+        api.get('/analytics/export/energy?building=ALL&days=30'),
+        api.get('/analytics/export/security?days=30'),
+        api.get('/analytics/export/incidents'),
+        api.get('/analytics/export/devices'),
+      ]);
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      const workbook = XLSX.utils.book_new();
+
+      // ===== SHEET 1: TỔNG QUAN BI & KPI =====
+      const overviewRows = [
+        ['HỆ THỐNG QUẢN LÝ KÝ TÚC XÁ THÔNG MINH SMARTDORM'],
+        ['BÁO CÁO PHÂN TÍCH DỮ LIỆU LỚN & KHO DỮ LIỆU BI (IOT ANALYTICS)'],
+        [`Thời gian xuất: ${new Date().toLocaleString('vi-VN')} | Đơn vị: Ban Quản Lý KTX`],
+        [],
+        ['CHỈ SỐ KPI TỔNG HỢP', 'GIÁ TRỊ HIỆN TẠI', 'ĐÁNH GIÁ VẬN HÀNH', 'TIÊU CHUẨN KỸ THUẬT'],
+        ['Độ Tin Cậy Hoạt Động Thiết Bị', '99.4%', 'Xuất sắc (Tăng +0.2% vs tuần trước)', 'Uptime SLA ≥ 99.0%'],
+        ['Tỷ Lệ Xác Thực Thẻ RFID Hợp Lệ', '99.7%', '1,280 / 1,284 lượt quẹt thành công', 'Từ chối 4 lượt không đúng phòng'],
+        ['Tần Suất Sự Cố Trong Tuần', '03 Vụ', 'Giảm 50% vs tuần trước', 'Thời gian phản ứng trung bình: 18s'],
+        ['Điểm Đánh Giá Hiệu Quả Năng Lượng', '94 / 100 Điểm', 'Đạt chuẩn Green Dorm Campus', 'Hạng A (Tiết kiệm điện)'],
+        [],
+        ['PHÂN LOẠI SỰ CỐ THEO HÌNH THỨC', 'SỐ VỤ GHI NHẬN', 'QUY TRÌNH XỬ LÝ THEO STRATEGY PATTERN', 'TRẠNG THÁI'],
+        ['Hỏa hoạn & Nhiệt độ cao', 4, 'Fire Strategy: Bật còi, mở cửa thoát hiểm, ngắt điện', 'Đã xử lý 100%'],
+        ['Rò rỉ khí gas MQ-2', 3, 'Gas Strategy: Bật quạt thông gió tối đa, tắt tia lửa', 'Đã xử lý 100%'],
+        ['Cảnh báo xâm nhập trái phép', 2, 'Intrusion Strategy: Khóa cửa, ghi log Blacklist', 'Đã xử lý 100%'],
+        ['Mất nguồn phụ tải điện', 1, 'Power Strategy: Chuyển mạch dự phòng UPS', 'Đã khắc phục'],
+      ];
+      const wsOverview = XLSX.utils.aoa_to_sheet(overviewRows);
+      wsOverview['!cols'] = [{ wch: 35 }, { wch: 22 }, { wch: 45 }, { wch: 30 }];
+      XLSX.utils.book_append_sheet(workbook, wsOverview, 'TongQuan_BI');
+
+      // ===== SHEET 2: ĐIỆN NĂNG PHÒNG (ENERGY) =====
+      const energyData = energyRes.status === 'fulfilled' ? energyRes.value.data?.records : null;
+      if (energyData && Array.isArray(energyData) && energyData.length > 0) {
+        const energyHeaders = ['Mã Phòng', 'Tòa Nhà', 'Tầng', 'Số Thiết Bị', 'Số TB Đang Bật', 'Điện Tiêu Thụ (kWh)', 'Đơn Giá (VNĐ/kWh)', 'Tổng Tiền (VNĐ)', 'Trạng Thái'];
+        const energyRows = [
+          ['BẢNG TỔNG HỢP TIÊU THỤ ĐIỆN NĂNG CÁC PHÒNG KTX'],
+          [`Ngày xuất: ${dateStr}`],
+          [],
+          energyHeaders,
+          ...energyData.map((r: any) => [
+            r.maPhong,
+            r.toaNha,
+            r.tang,
+            r.soThietBi,
+            r.soThietBiBat,
+            r.dienTieuThuKwh,
+            r.donGiaVnd,
+            r.thanhTienVnd,
+            r.trangThai
+          ]),
+        ];
+        const wsEnergy = XLSX.utils.aoa_to_sheet(energyRows);
+        wsEnergy['!cols'] = energyHeaders.map(() => ({ wch: 20 }));
+        XLSX.utils.book_append_sheet(workbook, wsEnergy, 'TieuThu_Dien');
+      }
+
+      // ===== SHEET 3: AN NINH & THẺ RFID =====
+      const securityData = securityRes.status === 'fulfilled' ? securityRes.value.data?.records : null;
+      if (securityData && Array.isArray(securityData) && securityData.length > 0) {
+        const secHeaders = ['Thời Gian Ghi Nhận', 'Mã Thẻ RFID', 'Họ Và Tên Sinh Viên', 'Mã Số Sinh Viên', 'Phòng Ở', 'Hành Động', 'Trạng Thái'];
+        const secRows = [
+          ['NHẬT KÝ KIỂM SOÁT AN NINH & QUẸT THẺ RFID'],
+          [`Ngày xuất: ${dateStr}`],
+          [],
+          secHeaders,
+          ...securityData.map((r: any) => [
+            r.thoiGian,
+            r.maTheRfid,
+            r.hoTen,
+            r.mssv,
+            r.phong,
+            r.hanhDong,
+            r.trangThai
+          ]),
+        ];
+        const wsSec = XLSX.utils.aoa_to_sheet(secRows);
+        wsSec['!cols'] = secHeaders.map(() => ({ wch: 22 }));
+        XLSX.utils.book_append_sheet(workbook, wsSec, 'AnNinh_RFID');
+      }
+
+      // ===== SHEET 4: ĐỘ TIN CẬY THIẾT BỊ THEO NGÀY =====
+      const relHeaders = ['Ngày Trong Tuần', 'Độ Tin Cậy Khóa Cửa Điện (%)', 'Độ Tin Cậy Đèn Chiếu Sáng (%)', 'Độ Tin Cậy Quạt Thông Gió (%)'];
+      const relRows = [
+        ['THỐNG KÊ ĐỘ TIN CẬY HOẠT ĐỘNG (UPTIME) THIẾT BỊ IOT THEO TUẦN'],
+        [`Ngày xuất: ${dateStr}`],
+        [],
+        relHeaders,
+        ...reliabilityData.map(r => [
+          r.day,
+          `${r.locks}%`,
+          `${r.lights}%`,
+          `${r.fans}%`
+        ]),
+      ];
+      const wsRel = XLSX.utils.aoa_to_sheet(relRows);
+      wsRel['!cols'] = relHeaders.map(() => ({ wch: 30 }));
+      XLSX.utils.book_append_sheet(workbook, wsRel, 'DoTinCay_IoT');
+
+      // Save file
+      XLSX.writeFile(workbook, `SmartDorm_ThongKe_DuLieu_BI_${dateStr}.xlsx`);
+      success('Đã xuất toàn bộ dữ liệu thống kê BI ra file Microsoft Excel (.xlsx) chuẩn thẩm mỹ!', 'Xuất Excel Thành Công');
+    } catch (err: any) {
+      error('Có lỗi xảy ra khi tạo file Excel', 'Xuất Thất Bại');
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  function handleExportPDF() {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+          <meta charset="utf-8">
+          <title>SmartDorm — Báo Cáo Phân Tích Dữ Liệu BI</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #0f172a; max-width: 1000px; margin: 0 auto; }
+            .header { border-bottom: 2px solid #1e3a8a; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+            h1 { color: #1e3a8a; font-size: 22px; margin: 0; font-weight: 800; }
+            .sub { color: #64748b; font-size: 12px; margin-top: 4px; }
+            .banner { background: #1e3a8a; color: white; padding: 18px 24px; border-radius: 10px; margin-bottom: 24px; }
+            .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+            .card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 8px; }
+            .card-title { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; }
+            .card-val { font-size: 22px; font-weight: 800; color: #0f172a; margin-top: 4px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; border: 1px solid #e2e8f0; }
+            th { background: #1e293b; color: white; padding: 10px 12px; text-align: left; }
+            td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+            tr:nth-child(even) td { background: #f8fafc; }
+            .footer { margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; font-size: 11px; color: #64748b; text-align: right; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>SMARTDORM ENTERPRISE IoT</h1>
+              <div class="sub">Hệ Thống Phân Tích Dữ Liệu Lớn & BI Ký Túc Xá</div>
+            </div>
+            <div style="text-align: right; font-size: 11px; color: #64748b;">
+              <div><b>Ngày Xuất:</b> ${new Date().toLocaleString('vi-VN')}</div>
+              <div><b>Trạng Thái:</b> BẢN IN KIỂM TOÁN</div>
+            </div>
+          </div>
+
+          <div class="banner">
+            <h2 style="margin: 0; font-size: 16px;">BÁO CÁO TỔNG HỢP HIỆU SUẤT VẬN HÀNH & AN TOÀN KÝ TÚC XÁ</h2>
+            <p style="margin: 4px 0 0 0; font-size: 12px; color: #bfdbfe;">Tổng hợp dữ liệu cảm biến DHT22, MQ-2, thẻ RFID và điện năng thời gian thực</p>
+          </div>
+
+          <div class="grid">
+            <div class="card">
+              <div class="card-title">Độ Tin Cậy Thiết Bị</div>
+              <div class="card-val" style="color: #059669;">99.4%</div>
+            </div>
+            <div class="card">
+              <div class="card-title">Xác Thực Thẻ RFID</div>
+              <div class="card-val" style="color: #2563eb;">99.7%</div>
+            </div>
+            <div class="card">
+              <div class="card-title">Tần Suất Sự Cố</div>
+              <div class="card-val" style="color: #d97706;">03 Vụ / Tuần</div>
+            </div>
+            <div class="card">
+              <div class="card-title">Điểm Năng Lượng</div>
+              <div class="card-val" style="color: #7c3aed;">94 / 100</div>
+            </div>
+          </div>
+
+          <h3>1. Phân Loại Sự Cố Ghi Nhận</h3>
+          <table>
+            <thead>
+              <tr><th>Loại Hình Cảnh Báo</th><th>Số Vụ</th><th>Kịch Bản Ứng Phó Tự Động</th><th>Trạng Thái</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Hỏa hoạn & Nhiệt độ cao</td><td>4</td><td>Bật còi, mở cửa thoát hiểm, ngắt điện</td><td><b style="color: #059669;">Đã xử lý</b></td></tr>
+              <tr><td>Rò rỉ khí gas MQ-2</td><td>3</td><td>Bật quạt hút thông gió, tắt công tắc tia lửa</td><td><b style="color: #059669;">Đã xử lý</b></td></tr>
+              <tr><td>Xâm nhập trái phép</td><td>2</td><td>Khóa chốt điện, ghi log Blacklist</td><td><b style="color: #059669;">Đã xử lý</b></td></tr>
+              <tr><td>Mất điện phụ tải</td><td>1</td><td>Chuyển mạch UPS dự phòng</td><td><b style="color: #059669;">Đã khắc phục</b></td></tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin-top: 24px;">2. Thống Kê Uptime Thiết Bị Theo Ngày</h3>
+          <table>
+            <thead>
+              <tr><th>Thứ</th><th>Khóa Cửa Điện (%)</th><th>Đèn Chiếu Sáng (%)</th><th>Quạt Thông Gió (%)</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Thứ 2</td><td>99.8%</td><td>99.2%</td><td>98.5%</td></tr>
+              <tr><td>Thứ 3</td><td>99.9%</td><td>99.4%</td><td>98.9%</td></tr>
+              <tr><td>Thứ 4</td><td>99.7%</td><td>99.1%</td><td>98.2%</td></tr>
+              <tr><td>Thứ 5</td><td>100.0%</td><td>99.5%</td><td>99.0%</td></tr>
+              <tr><td>Thứ 6</td><td>99.8%</td><td>98.9%</td><td>98.4%</td></tr>
+              <tr><td>Thứ 7</td><td>100.0%</td><td>99.6%</td><td>99.1%</td></tr>
+              <tr><td>Chủ Nhật</td><td>100.0%</td><td>99.8%</td><td>99.3%</td></tr>
+            </tbody>
+          </table>
+
+          <div class="footer">SmartDorm Enterprise System • Bản in phục vụ công tác thanh tra và báo cáo Ban Giám Hiệu</div>
+          <script>window.onload = function() { setTimeout(function() { window.print(); }, 400); }</script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      success('Đang mở giao diện in / lưu PDF báo cáo thống kê!', 'In Báo Cáo');
+    }
   }
 
   return (
@@ -69,12 +285,22 @@ export default function AnalyticsPage() {
 
         <div className="flex items-center gap-2">
           <Button
-            variant="secondary"
+            variant="outline"
             size="sm"
-            onClick={handleExport}
-            icon={<Download className="w-3.5 h-3.5" />}
+            loading={exporting === 'XLSX'}
+            onClick={handleExportXLSX}
+            icon={<FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />}
           >
-            Xuất Dữ Liệu (Export)
+            Xuất Excel (.xlsx)
+          </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleExportPDF}
+            icon={<FileType className="w-3.5 h-3.5" />}
+          >
+            In / Lưu PDF
           </Button>
         </div>
       </div>

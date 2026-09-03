@@ -42,7 +42,7 @@ const ADMIN_QUICK_ACTIONS = [
   { icon: Zap, label: 'Dự Báo Phụ Tải', text: 'Phân tích dự báo đỉnh phụ tải điện tối nay và đề xuất giải pháp tiết kiệm' },
   { icon: AlertTriangle, label: 'Dị Thường Thiết Bị', text: 'Liệt kê các thiết bị đang có chỉ số bất thường và nguyên nhân kỹ thuật' },
   { icon: Users, label: 'Hiện Diện Sinh Viên', text: 'Tình hình hiện diện sinh viên tại KTX hôm nay và khung giờ cao điểm' },
-  { icon: Cpu, label: 'Sức Khỏe AI / Model', text: 'Đánh giá độ chính xác MAE của mô hình LSTM, Prophet và trạng thái Drift' },
+  { icon: Cpu, label: 'Sức Khỏe AI / Model', text: 'Đánh giá độ chính xác MAE của mô hình GBM, LSTM và trạng thái Drift' },
   { icon: Flame, label: 'An Toàn PCCC', text: 'Quy trình xử lý khẩn cấp khi cảm biến MQ-2 hoặc nhiệt độ DHT22 vượt ngưỡng' },
   { icon: Lightbulb, label: 'Tối Ưu Vận Hành', text: 'Lập kế hoạch pre-cooling điều hòa và tắt thiết bị tại các phòng trống' },
 ];

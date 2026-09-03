@@ -43,6 +43,7 @@ export function AiAssistantWidget() {
   const userRole = isStudent ? 'STUDENT' : 'ADMIN';
 
   const [isOpen, setIsOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<StructuredChatMessage[]>([
     {
       id: 'welcome',
@@ -84,16 +85,16 @@ export function AiAssistantWidget() {
 
   const quickActions = isStudent
     ? [
-        { icon: Zap, text: 'Phòng của tôi đã dùng bao nhiêu điện hôm nay?' },
+        { icon: Zap, text: 'Phòng của tôi đã dùng bao nhiêu điện và hết bao nhiêu tiền tháng này?' },
+        { icon: ShieldCheck, text: 'Ngưỡng cảnh báo nhiệt độ và khí gas phòng tôi là bao nhiêu?' },
         { icon: Sparkles, text: 'Tối nay phòng tôi dự kiến dùng nhiều điện vào lúc nào?' },
         { icon: Lightbulb, text: 'Gợi ý mẹo tiết kiệm điện điều hòa cho phòng tôi' },
-        { icon: ShieldCheck, text: 'Nhiệt độ, độ ẩm và khí gas phòng tôi hiện tại thế nào?' },
       ]
     : [
-        { icon: Zap, text: 'Phân tích dự báo đỉnh phụ tải điện tối nay và đề xuất giải pháp tiết kiệm' },
+        { icon: Zap, text: 'Tổng hợp tiêu thụ điện & tính toán hóa đơn toàn KTX tháng này' },
+        { icon: ShieldCheck, text: 'Cấu hình ngưỡng an toàn & trạng thái thông báo Telegram/Email' },
+        { icon: Sparkles, text: 'Phân tích dự báo đỉnh phụ tải điện tối nay và đề xuất giải pháp tiết kiệm' },
         { icon: AlertTriangle, text: 'Liệt kê các thiết bị đang có chỉ số bất thường và nguyên nhân kỹ thuật' },
-        { icon: Users, text: 'Tình hình hiện diện sinh viên tại KTX hôm nay và khung giờ cao điểm' },
-        { icon: Cpu, text: 'Đánh giá độ chính xác MAE của mô hình LSTM và trạng thái Drift' },
       ];
 
   const handleSendMessage = async (textToSend?: string) => {
@@ -174,34 +175,83 @@ export function AiAssistantWidget() {
 
   return (
     <>
-      {/* Floating Action Trigger Button */}
-      {!isOpen && (
-        <button
-          id="copilot-floating-btn"
-          onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-[9999] flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-blue-700 via-indigo-600 to-purple-600 text-white rounded-full shadow-2xl hover:shadow-indigo-500/40 hover:scale-105 transition-all duration-200 border border-white/20 group"
-          title="Mở SmartDorm AI Copilot"
+      {/* Dynamic Circular Floating Action Trigger Button (Compact FAB) */}
+      {!isOpen && isMinimized && (
+        <div
+          className={`fixed z-[9999] transition-all duration-300 ${
+            isStudent ? 'bottom-20 right-0 sm:bottom-6' : 'bottom-4 right-0 sm:bottom-6'
+          }`}
         >
-          <div className="relative">
-            <Bot className="w-5 h-5 animate-pulse" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-indigo-900 animate-ping" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-indigo-900" />
+          <button
+            onClick={() => setIsMinimized(false)}
+            className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 text-white rounded-l-full shadow-lg border border-r-0 border-indigo-400/40 text-xs font-bold transition-all hover:pl-3.5 cursor-pointer"
+            title="Mở lại SmartDorm AI Copilot"
+          >
+            <Bot className="w-3.5 h-3.5 text-white" />
+            <span className="text-[10px] font-bold">AI</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          </button>
+        </div>
+      )}
+
+      {!isOpen && !isMinimized && (
+        <div
+          className={`fixed z-[9999] group flex items-end gap-1.5 transition-all duration-300 ${
+            isStudent ? 'bottom-20 right-3 sm:bottom-6 sm:right-6' : 'bottom-4 right-3 sm:bottom-6 sm:right-6'
+          }`}
+        >
+          {/* Subtle Hover Tooltip (Desktop only) */}
+          <div className="absolute bottom-full right-0 mb-2.5 hidden sm:group-hover:flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/95 text-white text-xs font-semibold rounded-xl shadow-xl border border-slate-700/80 whitespace-nowrap backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-150 pointer-events-none">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            <span>SmartDorm AI Copilot</span>
+            <span className="text-[10px] text-emerald-400 font-mono">• Trực tuyến</span>
           </div>
-          <div className="flex flex-col items-start pr-1">
-            <span className="text-xs font-bold tracking-tight text-white flex items-center gap-1">
-              SmartDorm AI Copilot
-              <span className="text-[9px] px-1 py-0.2 bg-white/20 rounded font-mono">Grounding</span>
-            </span>
-            <span className="text-[10px] text-indigo-100 font-medium">Hỏi đáp năng lượng & vi khí hậu</span>
-          </div>
-        </button>
+
+          {/* Minimize / Dock Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMinimized(true);
+            }}
+            className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 shadow-sm flex items-center justify-center text-[10px] font-bold transition-all cursor-pointer opacity-80 sm:opacity-0 sm:group-hover:opacity-100"
+            title="Thu gọn icon vào mép màn hình"
+            aria-label="Thu gọn AI Copilot"
+          >
+            –
+          </button>
+
+          {/* Main Floating Button */}
+          <button
+            id="copilot-floating-btn"
+            onClick={() => setIsOpen(true)}
+            className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 text-white shadow-xl shadow-indigo-600/35 hover:shadow-2xl hover:shadow-indigo-500/50 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center border-2 border-white/30 cursor-pointer overflow-visible"
+            title="Mở SmartDorm AI Copilot"
+            aria-label="Mở SmartDorm AI Copilot"
+          >
+            {/* Ambient Pulsing Glow Ring */}
+            <span className="absolute -inset-1 rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 opacity-40 blur-sm group-hover:opacity-75 animate-pulse transition-opacity duration-300" />
+
+            {/* Icon & Live Indicator */}
+            <div className="relative flex items-center justify-center">
+              <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:rotate-12 transition-transform duration-300" />
+              
+              {/* Online Green Ping */}
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-emerald-400 rounded-full border-2 border-slate-900 animate-ping" />
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-emerald-400 rounded-full border-2 border-slate-900" />
+            </div>
+          </button>
+        </div>
       )}
 
       {/* Glassmorphic Copilot Window */}
       {isOpen && (
         <div
           id="copilot-chat-window"
-          className="fixed bottom-6 right-6 z-[9999] w-[440px] max-w-[calc(100vw-2rem)] h-[620px] max-h-[calc(100vh-4rem)] flex flex-col bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200"
+          className={`fixed z-[9999] bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-5 duration-200 ${
+            isStudent
+              ? 'inset-x-2 bottom-20 top-16 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[440px] sm:h-[620px] sm:max-h-[calc(100vh-4rem)]'
+              : 'inset-x-2 bottom-4 top-16 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[440px] sm:h-[620px] sm:max-h-[calc(100vh-4rem)]'
+          }`}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border-b border-slate-700/60">

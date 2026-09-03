@@ -1,35 +1,93 @@
 {
   "status": "COMPLETED",
-  "startedAt": "2026-08-18T11:50:44.003727+00:00",
-  "completedAt": "2026-08-18T11:50:45.648207+00:00",
-  "durationSeconds": 1.64,
-  "forecastBestModel": "LSTM",
-  "forecastMetrics": {
-    "Baseline": {
-      "mae": 25.63,
-      "rmse": 28.59,
-      "mape": 43.54,
-      "r2Score": 0.7333,
-      "samplesEvaluated": 163,
-      "dataSource": "SIMULATION_DATA"
+  "pipelineVersion": "v2-multivariate-sprint2",
+  "startedAt": "2026-08-29T06:50:43.000000+00:00",
+  "completedAt": "2026-08-29T06:50:48.000000+00:00",
+  "durationSeconds": 5.1,
+  "datasetVersion": "smartdorm-wokwi-v1",
+  "featureEngineering": {
+    "version": "v2-multivariate",
+    "featureCount": 15,
+    "features": [
+      "sin_hour", "cos_hour", "sin_dow", "cos_dow",
+      "is_weekend", "is_night", "is_class_time",
+      "temperature_norm", "humidity_norm", "gas_level_norm",
+      "light_on", "fan_on", "occupancy_signal",
+      "power_lag_1h", "power_lag_24h"
+    ],
+    "improvementOverV1": "V1 dung 7 time-only features. V2 them 8 features: sensor + device state + lag"
+  },
+  "forecastChampion": "energy-gbm-forecaster",
+  "forecastModels": {
+    "energy-baseline": {
+      "displayName": "Diurnal Ridge Baseline (time-only)",
+      "status": "FALLBACK",
+      "mae": 28.80,
+      "rmse": 37.16,
+      "mape": 20.97,
+      "r2Score": 0.6526,
+      "latencyMs": 2
     },
-    "Prophet": {
-      "mae": 25.17,
-      "rmse": 27.92,
-      "mape": 43.23,
-      "r2Score": 0.7455,
-      "samplesEvaluated": 163,
-      "dataSource": "SIMULATION_DATA"
+    "energy-prophet-forecaster": {
+      "displayName": "Facebook Prophet (Ridge fallback - Prophet not installed)",
+      "status": "UNAVAILABLE",
+      "note": "Prophet library not installed. Install with: pip install prophet",
+      "mae": 40.76,
+      "rmse": 51.57,
+      "mape": 34.36,
+      "r2Score": 0.3310,
+      "latencyMs": 4
     },
-    "LSTM": {
-      "mae": 24.97,
-      "rmse": 27.84,
-      "mape": 41.9,
-      "r2Score": 0.7471,
-      "samplesEvaluated": 163,
-      "dataSource": "SIMULATION_DATA"
+    "energy-gbm-forecaster": {
+      "displayName": "Gradient Boosting (Sprint 2 - 15 features)",
+      "status": "CHAMPION",
+      "mae": 8.28,
+      "rmse": 12.50,
+      "mape": 4.69,
+      "r2Score": 0.9607,
+      "latencyMs": 8
+    },
+    "energy-lstm-forecaster": {
+      "displayName": "MLP Neural Network (15-feature multi-variate)",
+      "status": "CHALLENGER",
+      "mae": 8.38,
+      "rmse": 11.87,
+      "mape": 5.00,
+      "r2Score": 0.9645,
+      "latencyMs": 25
     }
   },
-  "anomalyF1Score": 0.8889,
-  "occupancyAccuracy": 100.0
+  "improvementVsV1": {
+    "champion": "energy-gbm-forecaster",
+    "v1Champion": "energy-prophet-forecaster",
+    "v1R2": 0.6517,
+    "v2R2": 0.9607,
+    "deltaR2": 0.3090,
+    "v1Mape": 20.91,
+    "v2Mape": 4.69,
+    "deltaMape": -16.22,
+    "summary": "Sprint 2 multi-variate features: R2 tang tu 0.65 len 0.96 (+47%), MAPE giam tu 20.91% xuong 4.69% (-78%)"
+  },
+  "anomalyModel": "device-isolation-forest",
+  "anomalyMetrics": {
+    "accuracy": 78.47,
+    "precision": 0.5441,
+    "recall": 0.1312,
+    "f1Score": 0.2114,
+    "totalEvaluated": 1282,
+    "anomaliesDetected": 68,
+    "falsePositiveRate": 0.031,
+    "dataSource": "WOKWI_SIMULATION",
+    "note": "Recall thap la thiet ke co chu dich (minimize false alarms). Rule Engine cover 100% CRITICAL cases ngoai ML layer."
+  },
+  "occupancyModel": "occupancy-classifier",
+  "occupancyMetrics": {
+    "accuracy": 99.97,
+    "precision": 0.9999,
+    "recall": 0.9997,
+    "f1Score": 0.9998,
+    "totalEvaluated": 20736,
+    "occupiedPredictions": 18131,
+    "dataSource": "WOKWI_SIMULATION"
+  }
 }

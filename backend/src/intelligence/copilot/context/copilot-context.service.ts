@@ -128,12 +128,38 @@ export class CopilotContextService {
       return 'RECOMMENDATIONS';
     }
 
+    // Check Monthly Billing & Electricity Cost
+    if (
+      text.includes('tiền điện') ||
+      text.includes('hóa đơn') ||
+      text.includes('bao nhiêu tiền') ||
+      text.includes('đóng tiền') ||
+      text.includes('đơn giá') ||
+      text.includes('chia tiền') ||
+      text.includes('bậc thang') ||
+      text.includes('tháng này hết bao nhiêu')
+    ) {
+      return 'MONTHLY_BILLING';
+    }
+
+    // Check Settings, Thresholds & Notifications
+    if (
+      text.includes('ngưỡng') ||
+      text.includes('cài đặt') ||
+      text.includes('cấu hình') ||
+      text.includes('telegram') ||
+      text.includes('email') ||
+      text.includes('báo cháy ở mức') ||
+      text.includes('quy tắc an toàn')
+    ) {
+      return 'SYSTEM_SETTINGS_THRESHOLDS';
+    }
+
     // Check Energy Consumption
     if (
       text.includes('điện') ||
       text.includes('kwh') ||
       text.includes('công suất') ||
-      text.includes('tiền điện') ||
       text.includes('năng lượng') ||
       text.includes('tốn kém')
     ) {
@@ -289,6 +315,16 @@ export class CopilotContextService {
           const recRes = await this.toolsService.getRecommendations(ctx);
           toolResults.push(recRes);
         }
+        break;
+      }
+      case 'MONTHLY_BILLING': {
+        const billRes = await this.toolsService.getMonthlyBilling(requestedRoom, ctx);
+        toolResults.push(billRes);
+        break;
+      }
+      case 'SYSTEM_SETTINGS_THRESHOLDS': {
+        const setRes = await this.toolsService.getSystemSettingsAndThresholds(ctx);
+        toolResults.push(setRes);
         break;
       }
       case 'ENERGY_ANALYSIS': {

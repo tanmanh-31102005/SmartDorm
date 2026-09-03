@@ -259,7 +259,7 @@ export const useIntelligenceStore = create<IntelligenceState>()(
       },
     }),
     {
-      name: 'smartdorm-intelligence-store-v2',
+      name: 'smartdorm-intelligence-store-v3',
       storage: createJSONStorage(() => localStorage),
     }
   )

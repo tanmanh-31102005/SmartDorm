@@ -113,8 +113,8 @@ export default function AdminDashboardPage() {
         const dbSensors = sensorsRes.value.data;
         const chartPoints = dbSensors.map((s: any) => ({
           time: new Date(s.recordedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          temp: s.temperature ?? 27.5,
-          humid: s.humidity ?? 65,
+          temp: Math.max(15, Math.min(50, Number(s.temperature) || 27.5)),
+          humid: Math.max(20, Math.min(100, Number(s.humidity) || 65)),
         }));
         setTempChart(chartPoints);
 
@@ -179,8 +179,8 @@ export default function AdminDashboardPage() {
         ...prev.slice(-19),
         {
           time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          temp: data.temperature ?? 27.5,
-          humid: data.humidity ?? 65,
+          temp: Math.max(15, Math.min(50, Number(data.temperature) || 27.5)),
+          humid: Math.max(20, Math.min(100, Number(data.humidity) || 65)),
         }
       ]);
 
@@ -353,9 +353,9 @@ export default function AdminDashboardPage() {
 
             <MetricCard
               label="SỰ CỐ KHẨN CẤP & CẢNH BÁO"
-              value={activeAlerts.length > 0 ? `0${activeAlerts.length}` : '00'}
-              subValue={activeAlerts.length > 0 ? '2 Critical · 1 Warning' : 'Tất cả an toàn'}
-              tag={activeAlerts.length > 0 ? 'Cần can thiệp ngay' : 'Bình thường'}
+              value={activeAlerts.length}
+              subValue={activeAlerts.length > 0 ? `${activeAlerts.length} sự cố đang mở` : 'Tất cả phòng an toàn'}
+              tag={activeAlerts.length > 0 ? 'Cần can thiệp' : 'An Toàn'}
               tagVariant={activeAlerts.length > 0 ? 'critical' : 'success'}
               highlight={activeAlerts.length > 0}
               icon={<Flame className="w-4 h-4 text-red-600" />}
@@ -648,7 +648,7 @@ export default function AdminDashboardPage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                   <XAxis dataKey="time" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} />
                   <Tooltip
                     contentStyle={{ 
                       backgroundColor: '#ffffff', 

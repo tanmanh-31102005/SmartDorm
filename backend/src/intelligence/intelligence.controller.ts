@@ -32,7 +32,7 @@ export class IntelligenceController {
   }
 
   @Get('energy/forecast')
-  @ApiOperation({ summary: 'Dự báo tiêu thụ điện năng 24h (Prophet / Active model / Baseline fallback)' })
+  @ApiOperation({ summary: 'Dự báo tiêu thụ điện năng 24h (GBM Champion / Active model / Baseline fallback)' })
   @ApiQuery({ name: 'buildingId', required: false })
   @ApiQuery({ name: 'roomId', required: false })
   @ApiQuery({ name: 'horizonHours', required: false, type: Number })
@@ -48,7 +48,7 @@ export class IntelligenceController {
   }
 
   @Get('energy/comparison')
-  @ApiOperation({ summary: 'So sánh Benchmark đối chiếu 3 mô hình (Baseline vs Prophet vs LSTM)' })
+  @ApiOperation({ summary: 'So sánh Benchmark đối chiếu 3 mô hình (Baseline vs GBM vs LSTM)' })
   async getForecastComparison(@Query() query: ForecastQueryDto) {
     return this.intelligenceService.getForecastComparison(query);
   }

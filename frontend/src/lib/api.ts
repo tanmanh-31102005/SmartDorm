@@ -7,7 +7,7 @@ const api = axios.create({ baseURL: API_URL });
 // Tự động gắn JWT token vào mọi request
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -19,6 +19,7 @@ api.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('token');
+      localStorage.removeItem('access_token');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }

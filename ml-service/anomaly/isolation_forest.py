@@ -14,6 +14,7 @@ from app.schemas.anomaly import (
     DeviceInput,
     DeviceAnomaly,
     DeviceAnomalyResponse,
+    AnomalyRequest,
 )
 from preprocessing.feature_engineering import build_device_features
 

@@ -145,7 +145,7 @@ export default function IntelligenceOverviewPage() {
           value="19,250 kWh"
           change={{ value: '+8.2%', trend: 'up', label: 'vs hôm qua' }}
           subValue="Đỉnh tải: 19:30 @ 98.4 kW"
-          tag="Prophet v2"
+          tag="GBM Champion"
           tagVariant="info"
           icon={<Zap className="w-4 h-4 text-blue-900" />}
           iconBg="bg-blue-50 text-blue-900"
@@ -241,7 +241,7 @@ export default function IntelligenceOverviewPage() {
                 </h3>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Mô hình Prophet v2 phân tách chu kỳ thời tiết & thói quen sinh hoạt
+                Mô hình Gradient Boosting (GBM) phân tích 15 đặc trưng đa biến (Sensor + Thiết bị + Lịch trình)
               </p>
             </div>
 

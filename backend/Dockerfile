@@ -14,12 +14,14 @@ COPY prisma ./prisma/
 RUN npm install --legacy-peer-deps
 RUN npx prisma generate
 
-
 # Copy source code and build NestJS
 COPY . .
 RUN npm run build
 
-# Production image
+# Remove devDependencies to keep only production packages
+RUN npm prune --production --legacy-peer-deps
+
+# Production image (Minimal runner layer)
 FROM node:20-alpine AS runner
 
 WORKDIR /app

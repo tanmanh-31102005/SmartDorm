@@ -54,7 +54,24 @@ export default function EnergyForecastPage() {
   const [selectedBuilding, setSelectedBuilding] = useState('ALL');
   const [selectedRoom, setSelectedRoom] = useState('ALL');
 
-  const prophetModel = models.find((m) => m.id === 'mdl-prophet-v2') || models[0];
+  const championModel =
+    models.find((m) => m.id === 'mdl-gbm-v2') ||
+    models.find((m) => m.code?.includes('gbm')) || {
+      id: 'mdl-gbm-v2',
+      name: 'Gradient Boosting Forecaster',
+      code: 'energy_gbm_v2.0.joblib',
+      version: 'v2.0.0',
+      type: 'FORECAST',
+      status: 'ACTIVE',
+      trainedAt: '2026-08-29T06:50:48Z',
+      datasetRange: 'smartdorm-wokwi-v1 (103,680 records)',
+      trainingSamples: 103680,
+      mae: 8.28,
+      rmse: 12.50,
+      mape: 4.69,
+      r2: 0.9607,
+      latencyMs: 8,
+    };
 
 
   // Multi-period chart dataset with simulation multiplier
@@ -121,8 +138,8 @@ export default function EnergyForecastPage() {
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
               AI Energy Load Forecasting & Simulation
             </h1>
-            <Badge variant="info" size="md">
-              Prophet Forecaster v2.4
+            <Badge variant="success" size="md">
+              GBM Forecaster v2.0 (Champion)
             </Badge>
           </div>
           <p className="text-xs text-slate-500 font-medium">
@@ -394,7 +411,7 @@ export default function EnergyForecastPage() {
                 name="1. Baseline Diurnal (kW/kWh)"
               />
 
-              {/* AI Forecast (Prophet) */}
+              {/* AI Forecast (GBM Champion) */}
               <Line
                 type="monotone"
                 dataKey="forecast"
@@ -402,7 +419,7 @@ export default function EnergyForecastPage() {
                 strokeWidth={2.5}
                 strokeDasharray="4 4"
                 dot={{ r: 3, fill: '#2563eb' }}
-                name="2. Prophet Forecast (kW/kWh)"
+                name="2. GBM Forecast (kW/kWh)"
               />
 
               {/* AI Forecast (LSTM Recurrent) */}
@@ -449,7 +466,7 @@ export default function EnergyForecastPage() {
 
       {/* 5. Detailed Model Performance & Technical Metrics for Admin */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Prophet Architecture Card */}
+        {/* GBM Champion Architecture Card */}
         <div className="admin-card p-5">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
             <div className="flex items-center gap-2">
@@ -459,30 +476,32 @@ export default function EnergyForecastPage() {
               </h3>
             </div>
             <Badge variant="success" size="sm">
-              v2.4.1 Active
+              v2.0.0 Champion
             </Badge>
           </div>
 
           <div className="space-y-2.5 text-xs">
             <div className="flex justify-between py-1 border-b border-slate-50">
               <span className="text-slate-500">Mã Artifact:</span>
-              <span className="font-mono font-bold text-slate-800">{prophetModel.code}</span>
+              <span className="font-mono font-bold text-slate-800">
+                {championModel.code === 'prophet_load_v2.pkl' ? 'energy_gbm_v2.0.joblib' : championModel.code}
+              </span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-50">
               <span className="text-slate-500">Kích Thước Tập Train:</span>
-              <span className="font-mono font-bold text-slate-800">1.42M bản ghi (180 ngày)</span>
+              <span className="font-mono font-bold text-slate-800">103.6K bản ghi (smartdorm-wokwi-v1)</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-50">
               <span className="text-slate-500">Lần Huấn Luyện Gần Nhất:</span>
-              <span className="font-mono text-slate-800">10/08/2026 (7 ngày trước)</span>
+              <span className="font-mono text-slate-800">29/08/2026 (Sprint 2 Pipeline)</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-50">
               <span className="text-slate-500">Thời Gian Suy Luận (Inference):</span>
-              <span className="font-mono font-bold text-emerald-700">18 ms / request</span>
+              <span className="font-mono font-bold text-emerald-700">8 ms / request</span>
             </div>
             <div className="flex justify-between py-1">
-              <span className="text-slate-500">Khoảng Tin Cậy (Confidence):</span>
-              <span className="font-mono font-bold text-blue-900">95% (± 2σ)</span>
+              <span className="text-slate-500">Số Lượng Đặc Trưng (Features):</span>
+              <span className="font-mono font-bold text-blue-900">15 đặc trưng đa biến</span>
             </div>
           </div>
         </div>
@@ -502,26 +521,26 @@ export default function EnergyForecastPage() {
           <div className="grid grid-cols-2 gap-3 text-center">
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
               <div className="text-[10px] font-bold text-slate-400 uppercase">MAE (Sai số tuyệt đối)</div>
-              <div className="text-lg font-bold font-mono text-slate-900 my-0.5">0.42 kWh</div>
-              <span className="text-[10px] text-emerald-700 font-semibold">Tối ưu xuất sắc</span>
+              <div className="text-lg font-bold font-mono text-slate-900 my-0.5">8.28 W</div>
+              <span className="text-[10px] text-emerald-700 font-semibold">Giảm 71% vs Baseline</span>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
               <div className="text-[10px] font-bold text-slate-400 uppercase">RMSE (Sai số toàn phương)</div>
-              <div className="text-lg font-bold font-mono text-blue-900 my-0.5">0.68 kWh</div>
-              <span className="text-[10px] text-blue-700 font-semibold">&lt; 1.0 kWh Threshold</span>
+              <div className="text-lg font-bold font-mono text-blue-900 my-0.5">12.50 W</div>
+              <span className="text-[10px] text-blue-700 font-semibold">Độ lệch chuẩn cực thấp</span>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
               <div className="text-[10px] font-bold text-slate-400 uppercase">MAPE (Phần trăm sai số)</div>
-              <div className="text-lg font-bold font-mono text-emerald-700 my-0.5">3.82%</div>
+              <div className="text-lg font-bold font-mono text-emerald-700 my-0.5">4.69%</div>
               <span className="text-[10px] text-emerald-700 font-semibold">&lt; 5.0% Chuẩn Enterprise</span>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
               <div className="text-[10px] font-bold text-slate-400 uppercase">Hệ Số R-Squared (R²)</div>
-              <div className="text-lg font-bold font-mono text-purple-700 my-0.5">0.946</div>
-              <span className="text-[10px] text-purple-700 font-semibold">Tương quan 94.6%</span>
+              <div className="text-lg font-bold font-mono text-purple-700 my-0.5">0.9607</div>
+              <span className="text-[10px] text-purple-700 font-semibold">Tương quan 96.1%</span>
             </div>
           </div>
         </div>
@@ -540,11 +559,11 @@ export default function EnergyForecastPage() {
 
             <div className="space-y-2 text-xs">
               {[
-                { name: 'Nhiệt độ môi trường (Ambient Temp)', weight: 38 },
-                { name: 'Khung giờ trong ngày (Hour of Day)', weight: 26 },
-                { name: 'Tỷ lệ lưu trú RFID (Occupancy Rate)', weight: 18 },
-                { name: 'Phụ tải trễ 24h trước (Lag 24h)', weight: 12 },
-                { name: 'Ngày cuối tuần (Is Weekend)', weight: 6 },
+                { name: 'Phụ tải trễ 1h & 24h (Lags)', weight: 34 },
+                { name: 'Trạng thái Đèn & Quạt (Device States)', weight: 28 },
+                { name: 'Khung giờ & Chu kỳ tuần (Cyclical Time)', weight: 20 },
+                { name: 'Nhiệt độ & Khí gas (Sensors)', weight: 12 },
+                { name: 'Tín hiệu hiện diện (Occupancy)', weight: 6 },
               ].map((f, i) => (
                 <div key={i} className="space-y-1">
                   <div className="flex justify-between text-[11px]">

@@ -47,6 +47,11 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.emit('emergency:alert', alert);
   }
 
+  /** Broadcast emergency resolved */
+  broadcastEmergencyResolved(id: string) {
+    this.server.emit('emergency:resolved', { id, isResolved: true, resolvedAt: new Date().toISOString() });
+  }
+
   /** Broadcast device status change */
   broadcastDeviceStatus(roomId: string, status: any) {
     this.server.emit('device:status', { roomId, ...status });

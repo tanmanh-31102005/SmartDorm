@@ -4,7 +4,7 @@ Write-Host "==================================================" -ForegroundColor
 Write-Host ""
 
 $root = $PSScriptRoot
-if (-not $root) { $root = "d:\DACNTT2" }
+if (-not $root) { $root = "d:\DACNTT2\SmartDorm_SourceCode" }
 
 # 0. Kiem tra dependencies neu moi giai nen tu zip
 if (-not (Test-Path "$root\backend\node_modules")) {

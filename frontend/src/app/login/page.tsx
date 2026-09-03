@@ -47,9 +47,11 @@ export default function LoginPage() {
 
     try {
       const res = await api.post('/auth/login', { email, password });
-      const { access_token, user } = res.data;
+      const { user } = res.data;
+      const jwtToken = res.data.token || res.data.access_token;
       
-      localStorage.setItem('token', access_token);
+      localStorage.setItem('token', jwtToken);
+      localStorage.setItem('access_token', jwtToken);
       localStorage.setItem('user', JSON.stringify(user));
       success(`Chào mừng ${user.fullName || 'bạn'} quay trở lại!`, 'Đăng nhập thành công');
 

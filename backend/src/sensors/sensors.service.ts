@@ -4,6 +4,7 @@ import { MqttService } from '../mqtt/mqtt.service';
 import { EventsGateway } from '../gateway/events.gateway';
 import { EmergencyService } from '../emergency/emergency.service';
 import { TelemetryService } from '../telemetry/telemetry.service';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class SensorsService implements OnModuleInit {
@@ -16,6 +17,7 @@ export class SensorsService implements OnModuleInit {
     private readonly eventsGateway: EventsGateway,
     private readonly emergencyService: EmergencyService,
     private readonly telemetryService: TelemetryService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   onModuleInit() {
@@ -46,6 +48,14 @@ export class SensorsService implements OnModuleInit {
       }
     }
 
+    // Dynamic thresholds from SettingsService
+    const thresholds = this.settingsService.getThresholds();
+    const tempVal = Number(data.temperature ?? 0);
+    const gasVal = Number(data.gas_level ?? 0);
+
+    const isFireAlert = data.temp_alert || tempVal >= thresholds.tempCritical;
+    const isGasAlert = data.gas_alert || gasVal >= thresholds.gasCritical;
+
     // Calculate simulated power if raw power not supplied:
     // 3 lights (~20W each) + fan (~60W)
     let lightCount = 0;
@@ -65,6 +75,8 @@ export class SensorsService implements OnModuleInit {
       ...data,
       powerW,
       occupancySignal,
+      temp_alert: isFireAlert,
+      gas_alert: isGasAlert,
     });
 
     // Lưu vào InfluxDB (Time-series)
@@ -91,17 +103,16 @@ export class SensorsService implements OnModuleInit {
           temperature: data.temperature,
           humidity:    data.humidity,
           gasLevel:    data.gas_level,
-          gasAlert:    data.gas_alert  || false,
-          tempAlert:   data.temp_alert || false,
+          gasAlert:    isGasAlert,
+          tempAlert:   isFireAlert,
           motionDetected: Boolean(data.motion_detected || occupancySignal),
           roomId:      roomInfo.id,
         },
       }).catch(e => this.logger.warn('DB error: ' + e.message));
 
-
-      if (data.gas_alert) {
+      if (isGasAlert) {
         await this.emergencyService.handleEmergency('GAS_LEAK', roomInfo.id, roomInfo.buildingId, data);
-      } else if (data.temp_alert) {
+      } else if (isFireAlert) {
         await this.emergencyService.handleEmergency('FIRE', roomInfo.id, roomInfo.buildingId, data);
       }
     }

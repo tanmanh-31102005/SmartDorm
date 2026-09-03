@@ -44,7 +44,7 @@ export default function ModelPerformancePage() {
   const [retrainingModel, setRetrainingModel] = useState<ModelMetric | null>(null);
   const [retrainProgress, setRetrainProgress] = useState(0);
   const [isRetraining, setIsRetraining] = useState(false);
-  const [activeForecaster, setActiveForecaster] = useState('energy-prophet-forecaster');
+  const [activeForecaster, setActiveForecaster] = useState('energy-gbm-forecaster');
 
   const activeModelsCount = models.filter((m) => m.status === 'ACTIVE').length;
   const staleModelsCount = models.filter((m) => m.isStale).length;
@@ -214,7 +214,7 @@ export default function ModelPerformancePage() {
                 </Badge>
               </div>
               <h2 className="text-lg font-bold">
-                Đối Soát Hiệu Năng: Baseline vs Facebook Prophet vs LSTM Neural Network
+                Đối Soát Hiệu Năng: Baseline vs Gradient Boosting (GBM) vs LSTM Neural Network
               </h2>
               <p className="text-xs text-blue-200/90 max-w-3xl leading-relaxed">
                 Đánh giá độc lập trên tập kiểm định Time-series Chronological Split (70% Train, 15% Validation, 15% Test) với 1.65 triệu bản ghi đo đạc thực tế từ Wokwi và thiết bị IoT.
@@ -253,8 +253,11 @@ export default function ModelPerformancePage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                   {MODEL_BENCHMARK_COMPARISON.models.map((m) => {
-                    const isCurrentActive = activeForecaster === m.code || (activeForecaster === 'energy-prophet-forecaster' && m.type === 'STATISTICAL_SEASONALITY');
-                    const isBest = m.metrics.mae === 0.38;
+                    // Model đang ACTIVE: check theo code hoặc theo type ENSEMBLE (GBM)
+                    const isCurrentActive = activeForecaster === m.code ||
+                      (activeForecaster === 'energy-gbm-forecaster' && m.type === 'ENSEMBLE');
+                    // Best model: MAPE thấp nhất trong 3 models (GBM = 4.69%)
+                    const isBest = m.metrics.mape === Math.min(...MODEL_BENCHMARK_COMPARISON.models.map(x => x.metrics.mape));
 
                     return (
                       <tr key={m.modelId} className={`hover:bg-slate-50/80 transition-colors ${isCurrentActive ? 'bg-blue-50/40' : ''}`}>
@@ -391,7 +394,7 @@ export default function ModelPerformancePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-900">Prophet Forecaster (v2.4.1)</span>
+                <span className="text-xs font-bold text-emerald-900">Gradient Boosting Forecaster (v2.0.0)</span>
                 <Badge variant="success" size="sm">HEALTHY</Badge>
               </div>
               <p className="text-xs text-slate-600">Độ tuổi mô hình: 7 ngày · Độ trôi sai số: +1.8% (Ngưỡng cảnh báo: 20%). Không phát hiện Concept Drift.</p>

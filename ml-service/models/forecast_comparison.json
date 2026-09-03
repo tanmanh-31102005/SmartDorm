@@ -1,36 +1,78 @@
 {
-  "evaluatedAt": "2026-08-18T11:50:44.970577+00:00",
-  "datasetRange": "45 days (1081 hourly intervals)",
-  "chronologicalSplit": {
-    "trainSamples": 756,
-    "valSamples": 162,
-    "testSamples": 163
-  },
+  "dataset": "smartdorm-wokwi-v1",
+  "pipeline_version": "v2-multivariate-sprint2",
+  "evaluatedAt": "2026-08-29T06:51:40.582421+00:00",
+  "featureCount": 15,
+  "featureNames": [
+    "sin_hour",
+    "cos_hour",
+    "sin_dow",
+    "cos_dow",
+    "is_weekend",
+    "is_night",
+    "is_class_time",
+    "temperature_norm",
+    "humidity_norm",
+    "gas_level_norm",
+    "light_on",
+    "fan_on",
+    "motion_detected",
+    "power_lag_1h",
+    "power_lag_24h"
+  ],
   "models": {
-    "Baseline": {
-      "mae": 25.63,
-      "rmse": 28.59,
-      "mape": 43.54,
-      "r2Score": 0.7333,
-      "samplesEvaluated": 163,
-      "dataSource": "SIMULATION_DATA"
+    "energy-baseline": {
+      "displayName": "Diurnal Ridge Baseline (time-only)",
+      "status": "FALLBACK",
+      "mae": 28.8,
+      "rmse": 37.16,
+      "mape": 20.97,
+      "r2Score": 0.6526,
+      "samplesEvaluated": 162,
+      "dataSource": "WOKWI_SIMULATION",
+      "latencyMs": 2
     },
-    "Prophet": {
-      "mae": 25.17,
-      "rmse": 27.92,
-      "mape": 43.23,
-      "r2Score": 0.7455,
-      "samplesEvaluated": 163,
-      "dataSource": "SIMULATION_DATA"
+    "energy-prophet-forecaster": {
+      "displayName": "Facebook Prophet + Sensor Regressors",
+      "status": "EXPERIMENTAL",
+      "mae": 40.76,
+      "rmse": 51.57,
+      "mape": 34.36,
+      "r2Score": 0.331,
+      "samplesEvaluated": 162,
+      "dataSource": "WOKWI_SIMULATION",
+      "latencyMs": 18
     },
-    "LSTM": {
-      "mae": 24.97,
-      "rmse": 27.84,
-      "mape": 41.9,
-      "r2Score": 0.7471,
-      "samplesEvaluated": 163,
-      "dataSource": "SIMULATION_DATA"
+    "energy-gbm-forecaster": {
+      "displayName": "Gradient Boosting (Sprint 2 New)",
+      "status": "CHAMPION",
+      "mae": 8.28,
+      "rmse": 12.5,
+      "mape": 4.69,
+      "r2Score": 0.9607,
+      "samplesEvaluated": 162,
+      "dataSource": "WOKWI_SIMULATION",
+      "latencyMs": 8
+    },
+    "energy-lstm-forecaster": {
+      "displayName": "MLP Neural Network (15-feature multi-variate)",
+      "status": "CHALLENGER",
+      "mae": 8.38,
+      "rmse": 11.87,
+      "mape": 5.0,
+      "r2Score": 0.9645,
+      "samplesEvaluated": 162,
+      "dataSource": "WOKWI_SIMULATION",
+      "latencyMs": 25
     }
   },
-  "bestModel": "LSTM"
+  "promotionDecision": {
+    "champion": "energy-gbm-forecaster",
+    "reason": "Selected by composite score (R\u00b2\u00d70.5 \u2212 MAPE\u00d70.01). R\u00b2=0.9607, MAPE=4.69%. Sprint 2 improvement: \u0394R\u00b2=+0.3090, \u0394MAPE=\u221216.22%.",
+    "operationalMode": "PRODUCTION_ACTIVE",
+    "improvementOverV1": {
+      "delta_r2": 0.309,
+      "delta_mape": 16.22
+    }
+  }
 }

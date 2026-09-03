@@ -77,9 +77,11 @@ class LSTMNeuralForecaster:
             hidden_layer_sizes=(64, 32),
             activation="relu",
             solver="adam",
-            max_iter=300,
+            max_iter=600,
+            alpha=0.001,
             random_state=42,
             early_stopping=True,
+            n_iter_no_change=15,
         )
         self.regressor.fit(np.array(X_syn), np.array(y_syn))
         self.is_fitted = True
@@ -119,10 +121,11 @@ class LSTMNeuralForecaster:
                 hidden_layer_sizes=(64, 32),
                 activation="relu",
                 solver="adam",
-                max_iter=400,
+                max_iter=600,
                 alpha=0.001,
                 random_state=42,
                 early_stopping=True,
+                n_iter_no_change=15,
             )
             self.regressor.fit(X_train, y_train)
             self.is_fitted = True

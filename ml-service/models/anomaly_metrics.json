@@ -1,8 +1,17 @@
 {
-  "accuracy": 99.0,
-  "precision": 0.9231,
-  "recall": 0.8571,
-  "f1Score": 0.8889,
-  "samplesEvaluated": 1200,
-  "dataSource": "SIMULATION_DATA"
+  "modelName": "device-isolation-forest",
+  "version": "v1.5-iforest",
+  "datasetVersion": "smartdorm-wokwi-v1",
+  "evaluatedAt": "2026-08-20T12:52:17.656400+00:00",
+  "status": "CHAMPION",
+  "metrics": {
+    "accuracy": 78.47,
+    "precision": 0.5441,
+    "recall": 0.1312,
+    "f1Score": 0.2114,
+    "totalEvaluated": 1282,
+    "anomaliesDetected": 68,
+    "falsePositiveRate": 0.031,
+    "dataSource": "WOKWI_SIMULATION"
+  }
 }
