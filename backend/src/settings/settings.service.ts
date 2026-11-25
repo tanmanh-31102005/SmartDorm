@@ -1,4 +1,5 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, OnModuleInit } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 export interface SystemSettings {
   tempWarning: number;
@@ -18,10 +19,12 @@ export interface SystemSettings {
 }
 
 @Injectable()
-export class SettingsService {
+export class SettingsService implements OnModuleInit {
   private readonly logger = new Logger('SettingsService');
 
-  // In-memory runtime settings initialized from env or defaults
+  constructor(private readonly prisma: PrismaService) {}
+
+  // Runtime cache initialized from env/defaults and hydrated from DB on startup
   private settings: SystemSettings = {
     tempWarning: 38.0,
     tempCritical: 48.0,
@@ -30,14 +33,46 @@ export class SettingsService {
     powerWarningW: 2500,
     autoLockSec: 5,
     mqttBroker: process.env.MQTT_BROKER_URL || 'mqtt://broker.hivemq.com:1883',
-    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '8732574383:AAGXiT1C6rz6vvUTBsUAnN8hNa5AKk9BpLY',
-    telegramChatId: process.env.TELEGRAM_CHAT_ID || '1148791626',
+    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
+    telegramChatId: process.env.TELEGRAM_CHAT_ID || '',
     smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
     smtpPort: Number(process.env.SMTP_PORT) || 587,
-    smtpUser: process.env.SMTP_USER || 'tanmanh312805@gmail.com',
+    smtpUser: process.env.SMTP_USER || '',
     autoMonthlyBillEnabled: true,
     dormElectricityRateVnd: 2260,
   };
+
+  async onModuleInit() {
+    try {
+      const saved = await this.prisma.systemSetting.findUnique({ where: { id: 'default' } });
+      if (saved) {
+        this.settings = {
+          tempWarning: saved.tempWarning,
+          tempCritical: saved.tempCritical,
+          gasWarning: saved.gasWarning,
+          gasCritical: saved.gasCritical,
+          powerWarningW: saved.powerWarningW,
+          autoLockSec: saved.autoLockSec,
+          mqttBroker: saved.mqttBroker || this.settings.mqttBroker,
+          telegramBotToken: saved.telegramBotToken || this.settings.telegramBotToken,
+          telegramChatId: saved.telegramChatId || this.settings.telegramChatId,
+          smtpHost: saved.smtpHost || this.settings.smtpHost,
+          smtpPort: saved.smtpPort || this.settings.smtpPort,
+          smtpUser: saved.smtpUser || this.settings.smtpUser,
+          autoMonthlyBillEnabled: saved.autoMonthlyBillEnabled,
+          dormElectricityRateVnd: saved.dormElectricityRateVnd,
+        };
+        this.logger.log('Loaded persisted SystemSetting from database.');
+      } else {
+        await this.prisma.systemSetting.create({
+          data: { id: 'default', ...this.settings },
+        });
+        this.logger.log('Initialized default SystemSetting in database.');
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not load/init SystemSetting from DB (using defaults): ${err?.message}`);
+    }
+  }
 
   getSettings(): SystemSettings {
     return { ...this.settings };
@@ -54,7 +89,7 @@ export class SettingsService {
     };
   }
 
-  updateSettings(dto: Partial<SystemSettings>): SystemSettings {
+  async updateSettings(dto: Partial<SystemSettings>): Promise<SystemSettings> {
     // 1. Safety Constraints Validation (Ràng buộc an toàn vật lý)
     if (dto.tempWarning !== undefined && dto.tempWarning < 35.0) {
       throw new BadRequestException('Ngưỡng nhiệt độ cảnh báo không được thấp hơn 35.0°C (mức nhiệt môi trường an toàn).');
@@ -88,13 +123,32 @@ export class SettingsService {
       throw new BadRequestException('Ngưỡng công suất điện cảnh báo không được thấp hơn 1000W.');
     }
 
-    // 2. Apply updates
-    this.settings = {
+    // 2. Apply updates & persist to database
+    const nextSettings: SystemSettings = {
       ...this.settings,
       ...dto,
+      smtpPort: Number(dto.smtpPort ?? this.settings.smtpPort) || 587,
+      autoLockSec: Number(dto.autoLockSec ?? this.settings.autoLockSec) || 5,
+      tempWarning: Number(dto.tempWarning ?? this.settings.tempWarning),
+      tempCritical: Number(dto.tempCritical ?? this.settings.tempCritical),
+      gasWarning: Number(dto.gasWarning ?? this.settings.gasWarning),
+      gasCritical: Number(dto.gasCritical ?? this.settings.gasCritical),
+      powerWarningW: Number(dto.powerWarningW ?? this.settings.powerWarningW),
+      dormElectricityRateVnd: Number(dto.dormElectricityRateVnd ?? this.settings.dormElectricityRateVnd),
     };
+    this.settings = nextSettings;
 
-    this.logger.log(`System settings updated successfully: Temp=${this.settings.tempCritical}°C, Gas=${this.settings.gasCritical}%, TelegramChat=${this.settings.telegramChatId}`);
+    try {
+      await this.prisma.systemSetting.upsert({
+        where: { id: 'default' },
+        update: { ...nextSettings },
+        create: { id: 'default', ...nextSettings },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Failed to persist SystemSetting to DB: ${err?.message}`);
+    }
+
+    this.logger.log(`System settings updated & persisted: Temp=${this.settings.tempCritical}°C, Gas=${this.settings.gasCritical}%, TelegramChat=${this.settings.telegramChatId}`);
     return { ...this.settings };
   }
 }

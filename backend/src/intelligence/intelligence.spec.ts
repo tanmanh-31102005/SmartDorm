@@ -12,6 +12,7 @@ import { EventsGateway } from '../gateway/events.gateway';
 import { MqttService } from '../mqtt/mqtt.service';
 import { CommandInvokerService } from '../devices/commands/command-invoker.service';
 import { DevicesService } from '../devices/devices.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('Intelligence & Automation Layer (NestJS)', () => {
   let intelligenceService: IntelligenceService;
@@ -243,6 +244,7 @@ describe('Intelligence & Automation Layer (NestJS)', () => {
         { provide: MqttService, useValue: mockMqttService },
         { provide: CommandInvokerService, useValue: mockCommandInvoker },
         { provide: DevicesService, useValue: mockDevicesService },
+        { provide: NotificationsService, useValue: { sendTelegramAlert: jest.fn(), createNotification: jest.fn() } },
       ],
     }).compile();
 

@@ -38,6 +38,10 @@ export class LlmService {
     return (process.env.LLM_MODEL || 'gemini-3.5-flash').trim();
   }
 
+  public getModelName(): string {
+    return this.modelName;
+  }
+
   private readonly timeoutMs = 12000;
 
   constructor() {

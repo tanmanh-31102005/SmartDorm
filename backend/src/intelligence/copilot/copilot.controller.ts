@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { CopilotService } from './copilot.service';
 import {
   CopilotQueryDto,
@@ -8,6 +9,8 @@ import {
 } from './dto/copilot.dto';
 
 @ApiTags('Intelligence - AI Copilot')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('intelligence/copilot')
 export class CopilotController {
   constructor(private readonly copilotService: CopilotService) {}

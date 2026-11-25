@@ -34,12 +34,12 @@ export default function SettingsPage() {
   const [gasCritical, setGasCritical] = useState('60.0');
   const [powerWarningW, setPowerWarningW] = useState('2500');
   const [autoLockSec, setAutoLockSec] = useState('5');
-  const [mqttBroker, setMqttBroker] = useState('mqtt://broker.hivemq.com:1883');
-  const [telegramBotToken, setTelegramBotToken] = useState('8732574383:AAGXiT1C6rz6vvUTBsUAnN8hNa5AKk9BpLY');
-  const [telegramChatId, setTelegramChatId] = useState('1148791626');
+  const [mqttBroker, setMqttBroker] = useState('mqtt://103.74.100.132:1883');
+  const [telegramBotToken, setTelegramBotToken] = useState('');
+  const [telegramChatId, setTelegramChatId] = useState('');
   const [smtpHost, setSmtpHost] = useState('smtp.gmail.com');
   const [smtpPort, setSmtpPort] = useState('587');
-  const [smtpUser, setSmtpUser] = useState('tanmanh312805@gmail.com');
+  const [smtpUser, setSmtpUser] = useState('');
   const [dormElectricityRateVnd, setDormElectricityRateVnd] = useState('2260');
   const [autoMonthlyBillEnabled, setAutoMonthlyBillEnabled] = useState(true);
 

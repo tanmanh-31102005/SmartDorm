@@ -1,8 +1,11 @@
-import { Controller, Post, Get, Body, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Post, Get, Body, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { LlmService, DeviceAnomalyContext, RecommendationContext } from './llm.service';
 
 @ApiTags('llm')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('intelligence/llm')
 export class LlmController {
   constructor(private readonly llmService: LlmService) {}
@@ -45,7 +48,7 @@ export class LlmController {
       reply,
       userMessage: message,
       timestamp: new Date().toISOString(),
-      model: 'gemini-3.6-flash',
+      model: this.llmService.getModelName(),
     };
   }
 }

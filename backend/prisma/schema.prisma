@@ -289,3 +289,24 @@ model AutomationExecution {
   @@index([ruleId, executedAt])
   @@map("automation_executions")
 }
+
+model SystemSetting {
+  id                     String   @id @default("default")
+  tempWarning            Float    @default(38.0)
+  tempCritical           Float    @default(48.0)
+  gasWarning             Float    @default(35.0)
+  gasCritical            Float    @default(60.0)
+  powerWarningW          Float    @default(2500)
+  autoLockSec            Int      @default(5)
+  mqttBroker             String   @default("mqtt://broker.hivemq.com:1883")
+  telegramBotToken       String   @default("")
+  telegramChatId         String   @default("")
+  smtpHost               String   @default("smtp.gmail.com")
+  smtpPort               Int      @default(587)
+  smtpUser               String   @default("")
+  autoMonthlyBillEnabled Boolean  @default(true)
+  dormElectricityRateVnd Float    @default(2260)
+  updatedAt              DateTime @updatedAt
+
+  @@map("system_settings")
+}

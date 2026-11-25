@@ -4,6 +4,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SensorsService } from './sensors.service';
 
 @ApiTags('sensors')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('sensors')
 export class SensorsController {
   constructor(private sensorsService: SensorsService) {}

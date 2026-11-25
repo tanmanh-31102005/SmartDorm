@@ -1,5 +1,6 @@
 // ========================================================================
 // SMARTDORM HYBRID ARCHITECTURE — RELATIONAL DATABASE SCHEMA (POSTGRESQL)
+// Synchronized 100% with schema.prisma for production PostgreSQL switch
 // ========================================================================
 
 generator client {
@@ -11,33 +12,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  STAFF
-  STUDENT
-}
-
-enum DeviceType {
-  LIGHT
-  FAN
-  DOOR_LOCK
-  BUZZER
-  AIR_CON
-}
-
-enum EmergencyType {
-  FIRE
-  GAS_LEAK
-  INTRUSION
-  POWER_OUTAGE
-}
-
-enum EmergencyLevel {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
-}
+// Role: "ADMIN" | "STUDENT"
+// DeviceType: "LIGHT" | "FAN" | "DOOR_LOCK" | "BUZZER" | "AIR_CON"
+// EmergencyType: "FIRE" | "GAS_LEAK" | "INTRUSION" | "POWER_OUTAGE"
+// EmergencyLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
 
 model User {
   id           String   @id @default(cuid())
@@ -45,7 +23,7 @@ model User {
   fullName     String
   email        String   @unique
   passwordHash String
-  role         Role     @default(STUDENT)
+  role         String   @default("STUDENT")
   rfidCardId   String?  @unique
   phone        String?
   isActive     Boolean  @default(true)
@@ -74,61 +52,57 @@ model Building {
 }
 
 model Room {
-  id               String   @id @default(cuid())
-  roomNumber       String
-  floor            Int
-  capacity         Int      @default(4)
-  espDeviceId      String?  @unique
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
+  id          String   @id @default(cuid())
+  roomNumber  String
+  floor       Int
+  capacity    Int      @default(4)
+  espDeviceId String?  @unique
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  buildingId       String
-  building         Building @relation(fields: [buildingId], references: [id])
+  buildingId String
+  building   Building @relation(fields: [buildingId], references: [id])
 
-  users            User[]
-  devices          Device[]
-  sensorData       SensorData[]
-  accessLogs       AccessLog[]
-  emergencies      Emergency[]
-  automationRules  AutomationRule[]
+  users       User[]
+  devices     Device[]
+  sensorData  SensorData[]
+  accessLogs  AccessLog[]
+  emergencies Emergency[]
 
   @@unique([buildingId, roomNumber])
   @@map("rooms")
 }
 
 model Device {
-  id          String     @id @default(cuid())
-  name        String
-  type        DeviceType
-  pinNumber   Int?
-  isOn        Boolean    @default(false)
-  isOnline    Boolean    @default(true)
-  powerWatts  Float      @default(0)
-  lastSeen    DateTime   @default(now())
-  createdAt   DateTime   @default(now())
+  id        String   @id @default(cuid())
+  name      String
+  type      String   // LIGHT | FAN | DOOR_LOCK | BUZZER | AIR_CON
+  isOn      Boolean  @default(false)
+  isOnline  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  roomId      String
-  room        Room       @relation(fields: [roomId], references: [id])
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id])
 
   commandLogs CommandLog[]
-  ruleActions RuleAction[]
 
   @@map("devices")
 }
 
 model SensorData {
-  id          String   @id @default(cuid())
-  temperature Float
-  humidity    Float
-  gasLevel    Float
-  gasAlert    Boolean  @default(false)
-  tempAlert   Boolean  @default(false)
-  motion      Boolean  @default(false)
-  powerW      Float    @default(0)
-  recordedAt  DateTime @default(now())
+  id             String   @id @default(cuid())
+  temperature    Float?
+  humidity       Float?
+  gasLevel       Float?
+  gasAlert       Boolean  @default(false)
+  tempAlert      Boolean  @default(false)
+  motionDetected Boolean  @default(false)
+  recordedAt     DateTime @default(now())
 
-  roomId      String
-  room        Room     @relation(fields: [roomId], references: [id])
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id])
 
   @@index([roomId, recordedAt])
   @@map("sensor_data")
@@ -137,16 +111,15 @@ model SensorData {
 model AccessLog {
   id         String   @id @default(cuid())
   rfidCardId String
-  action     String   @default("ENTRY")
-  authorized Boolean  @default(false)
-  deniedReason String?
+  action     String
+  authorized Boolean  @default(true)
   timestamp  DateTime @default(now())
 
-  roomId     String
-  room       Room     @relation(fields: [roomId], references: [id])
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
 
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id])
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id])
 
   @@index([roomId, timestamp])
   @@map("access_logs")
@@ -155,116 +128,184 @@ model AccessLog {
 model CommandLog {
   id          String   @id @default(cuid())
   commandType String
-  payload     String
-  status      String   @default("PENDING_ACK")
+  payload     String   // JSON string
+  status      String   @default("pending")
   executedAt  DateTime @default(now())
 
-  deviceId    String
-  device      Device   @relation(fields: [deviceId], references: [id])
+  deviceId String
+  device   Device @relation(fields: [deviceId], references: [id])
 
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 
-  @@index([deviceId, executedAt])
   @@map("command_logs")
 }
 
 model Emergency {
-  id          String         @id @default(cuid())
-  type        EmergencyType
-  level       EmergencyLevel @default(CRITICAL)
+  id          String    @id @default(cuid())
+  type        String    // FIRE | GAS_LEAK | INTRUSION | POWER_OUTAGE
+  level       String    // LOW | MEDIUM | HIGH | CRITICAL
   description String?
   sensorValue Float?
-  isResolved  Boolean        @default(false)
+  isResolved  Boolean   @default(false)
   resolvedAt  DateTime?
-  createdAt   DateTime       @default(now())
+  createdAt   DateTime  @default(now())
 
-  roomId      String
-  room        Room           @relation(fields: [roomId], references: [id])
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id])
 
-  @@index([status, severity])
+  @@index([roomId, createdAt])
+  @@index([isResolved, level])
   @@map("emergencies")
 }
 
-model Notification {
-  id        String   @id @default(cuid())
-  title     String
-  message   String
-  type      String   @default("INFO")
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+// ==================== AI / MACHINE LEARNING ====================
 
-  @@map("notifications")
+model MlModel {
+  id           String    @id @default(cuid())
+  modelName    String
+  modelType    String    // "FORECAST" | "ANOMALY" | "OCCUPANCY"
+  version      String    @default("v1")
+  status       String    @default("EXPERIMENTAL")
+  trainedAt    DateTime  @default(now())
+  datasetStart DateTime?
+  datasetEnd   DateTime?
+  metrics      String?
+  artifactPath String?
+  inferenceMs  Int?
+  notes        String?
+  createdAt    DateTime  @default(now())
+
+  predictions MlPrediction[]
+
+  @@map("ml_models")
+}
+
+model MlPrediction {
+  id             String   @id @default(cuid())
+  modelId        String
+  model          MlModel  @relation(fields: [modelId], references: [id])
+  roomId         String?
+  buildingId     String?
+  predictionType String
+  inputData      String
+  outputData     String
+  confidence     Float?
+  dataSource     String   @default("SIMULATION_DATA")
+  createdAt      DateTime @default(now())
+
+  @@index([roomId, createdAt])
+  @@index([predictionType, createdAt])
+  @@map("ml_predictions")
+}
+
+model DeviceAnomaly {
+  id             String    @id @default(cuid())
+  deviceId       String?
+  deviceName     String
+  roomId         String
+  anomalyScore   Float
+  severity       String    @default("WARNING")
+  features       String
+  status         String    @default("OPEN")
+  recommendation String?
+  detectedAt     DateTime  @default(now())
+  resolvedAt     DateTime?
+
+  @@index([roomId, detectedAt])
+  @@index([status, severity])
+  @@map("device_anomalies")
+}
+
+model OccupancyPrediction {
+  id                  String   @id @default(cuid())
+  roomId              String
+  occupiedProbability Float
+  predictedState      String
+  features            String
+  source              String   @default("RULE_PROXY")
+  createdAt           DateTime @default(now())
+
+  @@index([roomId, createdAt])
+  @@map("occupancy_predictions")
+}
+
+model AiRecommendation {
+  id              String    @id @default(cuid())
+  type            String
+  severity        String    @default("WARNING")
+  title           String
+  description     String
+  location        String?
+  reason          String
+  recommendation  String
+  confidence      Float?
+  evidence        String?
+  status          String    @default("PENDING")
+  acceptedBy      String?
+  acceptedAt      DateTime?
+  dismissedAt     DateTime?
+  executedAt      DateTime?
+  executionResult String?
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([type, status])
+  @@map("ai_recommendations")
 }
 
 model AutomationRule {
-  id          String       @id @default(cuid())
-  name        String
-  description String?
-  triggerType String
-  conditions  String
-  isActive    Boolean      @default(true)
-  cooldownSec Int          @default(60)
-  createdAt   DateTime     @default(now())
+  id              String    @id @default(cuid())
+  name            String
+  description     String?
+  conditions      String
+  actions         String
+  priority        Int       @default(50)
+  enabled         Boolean   @default(false)
+  cooldownMs      Int       @default(300000)
+  lastTriggeredAt DateTime?
+  createdBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  roomId      String?
-  room        Room?        @relation(fields: [roomId], references: [id])
-
-  actions     RuleAction[]
+  executions AutomationExecution[]
 
   @@map("automation_rules")
 }
 
-model RuleAction {
-  id        String         @id @default(cuid())
-  actionType String
-  payload   String
+model AutomationExecution {
+  id              String         @id @default(cuid())
+  ruleId          String
+  rule            AutomationRule @relation(fields: [ruleId], references: [id])
+  triggeredBy     String
+  inputContext    String
+  actionsExecuted String
+  result          String
+  requestedBy     String?
+  executedAt      DateTime       @default(now())
 
-  ruleId    String
-  rule      AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-
-  deviceId  String?
-  device    Device?        @relation(fields: [deviceId], references: [id])
-
-  @@map("rule_actions")
+  @@index([ruleId, executedAt])
+  @@map("automation_executions")
 }
 
-model AiRecommendation {
-  id            String    @id @default(cuid())
-  type          String
-  title         String
-  description   String
-  impactEst     String?
-  targetLocation String?
-  status        String    @default("PENDING")
-  createdAt     DateTime  @default(now())
-  appliedAt     DateTime?
+model SystemSetting {
+  id                     String   @id @default("default")
+  tempWarning            Float    @default(38.0)
+  tempCritical           Float    @default(48.0)
+  gasWarning             Float    @default(35.0)
+  gasCritical            Float    @default(60.0)
+  powerWarningW          Float    @default(2500)
+  autoLockSec            Int      @default(5)
+  mqttBroker             String   @default("mqtt://broker.hivemq.com:1883")
+  telegramBotToken       String   @default("")
+  telegramChatId         String   @default("")
+  smtpHost               String   @default("smtp.gmail.com")
+  smtpPort               Int      @default(587)
+  smtpUser               String   @default("")
+  autoMonthlyBillEnabled Boolean  @default(true)
+  dormElectricityRateVnd Float    @default(2260)
+  updatedAt              DateTime @updatedAt
 
-  @@map("ai_recommendations")
-}
-
-model AiModelRegistry {
-  id            String        @id @default(cuid())
-  modelName     String        @unique
-  version       String
-  algorithm     String
-  status        String        @default("ACTIVE")
-  lastTrainedAt DateTime      @default(now())
-  createdAt     DateTime      @default(now())
-
-  metrics       ModelMetric[]
-
-  @@map("ai_model_registry")
-}
-
-model ModelMetric {
-  id          String           @id @default(cuid())
-  metricName  String
-  metricValue Float
-  evaluatedAt DateTime         @default(now())
-
-  modelId     String
-  model       AiModelRegistry  @relation(fields: [modelId], references: [id], onDelete: Cascade)
-
-  @@map("model_metrics")
+  @@map("system_settings")
 }

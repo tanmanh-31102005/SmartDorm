@@ -96,9 +96,16 @@ Hãy chọn một chủ đề gợi ý bên dưới hoặc gõ câu hỏi của 
     setIsLoading(true);
 
     try {
+      const token =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('token') || localStorage.getItem('access_token')
+          : null;
       const res = await fetch(`${API_URL}/intelligence/copilot/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           message: query,
           context: { role: 'ADMIN' },
