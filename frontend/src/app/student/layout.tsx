@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { Breadcrumbs, BreadcrumbItem } from '@/components/ui/Breadcrumbs';
+import { useToast } from '@/components/ui/ToastContext';
 import { 
   LayoutDashboard, 
   DoorClosed, 
@@ -41,6 +42,7 @@ interface NavSection {
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { success, error, warning } = useToast();
 
   const [user, setUser] = useState<any>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -91,13 +93,31 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     socket.on('disconnect', () => setWsConnected(false));
     setWsConnected(socket.connected);
 
+    socket.on('access:log', (log: any) => {
+      const myRoom = parsed?.room?.roomNumber || '101';
+      if (log.room && String(log.room) !== String(myRoom)) return;
+      const card = log.rfidCardId || log.cardId || 'UNKNOWN';
+      const userName = log.user?.fullName || log.user?.name || 'Sinh viên';
+      if (log.authorized) {
+        success(`${userName} (${card}) vừa mở cửa P.${myRoom}`, 'QUẸT THẺ THÀNH CÔNG');
+      } else {
+        error(`Phát hiện thẻ lạ ${card} thử mở cửa P.${myRoom}!`, 'CẢNH BÁO AN NINH');
+      }
+    });
+
+    socket.on('emergency:alert', (alert: any) => {
+      warning(alert.message || alert.description || 'Cảnh báo an toàn KTX!', 'KHẨN CẤP');
+    });
+
     return () => {
       window.removeEventListener('storage', handleUserUpdate);
       window.removeEventListener('userUpdated', handleUserUpdate);
       socket.off('connect');
       socket.off('disconnect');
+      socket.off('access:log');
+      socket.off('emergency:alert');
     };
-  }, [router]);
+  }, [router, success, error, warning]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

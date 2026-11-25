@@ -62,7 +62,7 @@ interface NavSection {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { warning } = useToast();
+  const { success, warning, error } = useToast();
 
   const [user, setUser] = useState<any>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -149,12 +149,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       warning(`Sự cố khẩn cấp: ${newNotif.title}`, 'CẢNH BÁO IOT');
     });
 
+    socket.on('access:log', (log: any) => {
+      const card = log.rfidCardId || log.cardId || log.card_id || 'UNKNOWN';
+      const roomLabel = log.room || '101';
+      const isAuth = Boolean(log.authorized);
+      const userName = log.user?.fullName || log.user?.name || (card === 'CARD_A1B2C3D4' ? 'Nguyễn Văn An' : card === 'CARD_E5F6G7H8' ? 'Trần Thị Bình' : 'Sinh viên');
+
+      const newNotif: NotificationItem = {
+        id: `rfid-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        type: isAuth ? 'success' : 'critical',
+        title: isAuth ? `Quẹt thẻ hợp lệ — P.${roomLabel}` : `Cảnh báo thẻ lạ — P.${roomLabel}`,
+        description: isAuth
+          ? `${userName} (${card}) vừa mở khóa cửa phòng ${roomLabel}.`
+          : `Phát hiện thẻ không hợp lệ (${card}) cố truy cập phòng ${roomLabel}.`,
+        source: `RFID RC522 · P.${roomLabel}`,
+        time: 'Vừa xong',
+        read: false,
+        link: '/dashboard/access-log',
+      };
+      setNotifications(prev => [newNotif, ...prev]);
+
+      if (isAuth) {
+        success(`${userName} (${card}) đã mở cửa P.${roomLabel}`, 'QUẸT THẺ HỢP LỆ');
+      } else {
+        error(`Từ chối thẻ lạ ${card} tại P.${roomLabel}!`, 'CẢNH BÁO AN NINH RFID');
+      }
+    });
+
     return () => {
       socket.off('connect');
       socket.off('disconnect');
       socket.off('emergency:alert');
+      socket.off('access:log');
     };
-  }, [router, warning]);
+  }, [router, success, warning, error]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
