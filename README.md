@@ -156,15 +156,114 @@ Hệ thống **SmartDorm Enterprise** được tổ chức thành 4 phân hệ l
 # Trên máy tính cục bộ hoặc Cloud VPS Ubuntu 22.04 LTS:
 cp .env.docker.example .env.docker
 docker compose --env-file .env.docker up -d --build
-docker exec smartdorm-backend npx ts-node prisma/seed-demo.ts
+docker exec smartdorm-backend node dist/prisma/seed-demo.js
 ```
 > Chi tiết xem cẩm nang triển khai VPS Cloud: **[HUONG_DAN_THUE_VA_CAI_DAT_VPS_CLOUD.md](HUONG_DAN_THUE_VA_CAI_DAT_VPS_CLOUD.md)** hoặc chạy script tự động 1-click **[deploy_vps.sh](deploy_vps.sh)**.
 >
-> 📁 **Tài liệu & Kịch bản Nghiệm thu Đồ án:**
+> 📁 **Tài liệu Kỹ thuật & Kịch bản Nghiệm thu Đồ án:**
+> * 📚 **[docs/smartdorm_docs/INDEX_TAI_LIEU.md](docs/smartdorm_docs/INDEX_TAI_LIEU.md)**: Bộ tài liệu kỹ thuật đầy đủ 11 phần (Kiến trúc, Phần cứng ESP32, Backend, Database, ML Service, Frontend, API Reference) phục vụ viết báo cáo.
+> * 📝 **[docs/Template_KhoaCNTT_fixed.docx](docs/Template_KhoaCNTT_fixed.docx)**: File mẫu báo cáo chuẩn Khoa CNTT.
 > * 🎬 **[KICH_BAN_QUAY_CLIP_DEMO_VA_CHUP_ANH_MINH_CHUNG.md](KICH_BAN_QUAY_CLIP_DEMO_VA_CHUP_ANH_MINH_CHUNG.md)**: Kịch bản từng giây quay video demo và bảng checklist 5 góc chụp ảnh phần cứng minh chứng.
 > * 🛠️ **[HUONG_DAN_LAP_RAP_PHAN_CUNG_CHI_TIET.md](HUONG_DAN_LAP_RAP_PHAN_CUNG_CHI_TIET.md)**: Cẩm nang đấu nối phần cứng thực tế 0% hàn, Active-LOW cho ESP32 và bo Relay 4 kênh.
-> * 📄 **[baocao.docx](baocao.docx)** & **[baocao.pdf](baocao.pdf)**: Thuyết minh Đồ án / Khóa luận tốt nghiệp chuẩn Khoa CNTT (5 Chương, đầy đủ minh chứng).
 > * 🖼️ **[Poster_SmartDorm_KhoaCNTT.pptx](Poster_SmartDorm_KhoaCNTT.pptx)**: Poster bảo vệ đồ án kích thước chuẩn khổ A0 Khoa CNTT.
+
+---
+
+## ☁️ Hệ Thống Cloud VPS Đang Vận Hành (Live Production)
+
+Hệ thống SmartDorm đã được triển khai thực tế và kiểm thử hoàn chỉnh trên Cloud VPS tại **Datacenter FPT - Hồ Chí Minh**:
+
+* **Thông số máy chủ:** Hostname `SmartDorm` • IPv4 `103.74.100.132` • Ubuntu 22.04.5 LTS • 2 vCPU Intel Xeon Gold-6148 • 4 GB RAM (+ 4 GB Swap RAM) • 50 GB SSD NVMe • Firewall UFW đang bật (`22, 80, 443, 3000, 3001, 8000, 1883, 9001`).
+
+### 🔗 Link Truy Cập Dịch Vụ Live
+
+| Dịch vụ / Thành phần | Đường dẫn truy cập (URL / Endpoint) | Ghi chú |
+|---|---|---|
+| **Web Dashboard (Next.js 16)** | http://103.74.100.132:3000 | Giao diện Quản trị BQL & Cổng Sinh viên |
+| **Backend REST API & Swagger** | http://103.74.100.132:3001/api/docs | Tài liệu & kiểm thử API tương tác |
+| **AI / ML FastAPI Docs** | http://103.74.100.132:8000/docs | API Dự báo GBM, Isolation Forest, Random Forest |
+| **ML Service Health Check** | http://103.74.100.132:8000/ml/health | Kiểm tra trạng thái sống dịch vụ AI/ML |
+| **MQTT Broker (ESP32 / IoT)** | `103.74.100.132:1883` *(WS: `9001`)* | Broker Mosquitto 2.0 nhận telemetry từ ESP32 |
+
+### 🔐 Tài Khoản Đăng Nhập Mẫu
+
+| Vai trò | Email | Mật khẩu | Phạm vi truy cập |
+|---|---|---|---|
+| **Quản trị viên (Admin)** | `admin@ktx.edu.vn` | `admin123` | Toàn bộ 18 phòng, thiết bị, PCCC, AI Copilot, xuất Excel/PDF |
+| **Sinh viên (Student)** | `sv001@student.edu.vn` | `sinhvien123` | Phòng 101, điều khiển đèn/quạt/cửa, tiền điện EVN 6 bậc |
+
+### 🔌 Kết Nối Phần Cứng ESP32 Với Cloud VPS
+Firmware trong `hardware/src/main.cpp` đã cấu hình sẵn `MQTT_BROKER_PRIMARY = "103.74.100.132"` (fallback `broker.hivemq.com`). Khi cắm mạch ESP32 qua cáp USB Type-C, chạy lệnh sau để nạp vào bo mạch:
+```powershell
+& "$HOME\.platformio\penv\Scripts\platformio.exe" run -d hardware -t upload
+```
+
+---
+
+## 🛠️ Quy Trình Vận Hành, Sửa Lỗi & Re-Deploy Trên Cloud VPS
+
+Tất cả mã nguồn vận hành trên máy chủ đặt tại `/app/smartdorm`. Quy trình chi tiết xem thêm ở Mục 8 trong **[HUONG_DAN_THUE_VA_CAI_DAT_VPS_CLOUD.md](HUONG_DAN_THUE_VA_CAI_DAT_VPS_CLOUD.md)**.
+
+### 1. Truy cập SSH & Kiểm tra sức khỏe 6 Container
+```bash
+ssh root@103.74.100.132
+cd /app/smartdorm
+
+# Kiểm tra trạng thái tất cả container (phải thấy Up / healthy)
+docker compose --env-file .env.docker ps
+
+# Kiểm tra RAM, Swap và tải CPU
+free -h && docker stats --no-stream
+
+# Xem log realtime khi có sự cố (Ctrl+C để thoát)
+docker logs -f --tail 100 smartdorm-backend
+docker logs -f --tail 100 smartdorm-frontend
+docker logs -f --tail 100 smartdorm-ml-service
+docker logs -f --tail 100 smartdorm-mqtt
+```
+
+### 2. Quy trình 5 bước Sửa Lỗi & Đưa Bản Vá Lên Cloud
+1. **Khoanh vùng lỗi:** Dùng `F12` (Console/Network) trên trình duyệt kết hợp `docker logs` ở bước trên để xác định lỗi nằm ở `frontend`, `backend`, `ml-service` hay `mqtt`.
+2. **Sửa & test biên dịch tại Local trước** (không sửa code trực tiếp bên trong container):
+   * Backend: `cd backend && npm run build`
+   * Frontend: `cd frontend && npx tsc --noEmit`
+3. **Đẩy file đã sửa lên VPS:**
+   ```powershell
+   # Đẩy nhanh 1 file vừa sửa từ Windows lên VPS:
+   scp backend\src\devices\devices.service.ts root@103.74.100.132:/app/smartdorm/backend/src/devices/
+   ```
+   *(Hoặc `git push` từ local rồi trên VPS vào `/app/smartdorm` chạy `git pull` nếu đã cấu hình remote).*
+4. **Rebuild đúng Container bị sửa (giữ nguyên Database):**
+   ```bash
+   cd /app/smartdorm
+
+   # Nếu sửa Backend:
+   docker compose --env-file .env.docker up -d --build backend
+
+   # Nếu sửa Frontend (BẮT BUỘC truyền --build-arg IP VPS để Next.js nhúng đúng URL):
+   docker compose --env-file .env.docker build --build-arg NEXT_PUBLIC_API_URL=http://103.74.100.132:3001/api --build-arg NEXT_PUBLIC_WS_URL=http://103.74.100.132:3001 frontend
+   docker compose --env-file .env.docker up -d frontend
+
+   # Nếu sửa ML Service:
+   docker compose --env-file .env.docker up -d --build ml-service
+
+   # Nếu chỉ sửa biến môi trường (.env.docker: Telegram, Gmail, Gemini):
+   docker compose --env-file .env.docker up -d --force-recreate backend
+   ```
+5. **Kiểm tra & Backup dữ liệu an toàn:**
+   ```bash
+   # Backup SQLite database trước khi sửa lớn hoặc trước buổi bảo vệ:
+   cp /app/smartdorm/backend/prisma/dev.db /root/dev.db.backup_$(date +%F_%H%M)
+
+   # Rollback khẩn cấp nếu cần khôi phục database:
+   cp /root/dev.db.backup_<ngay_gio> /app/smartdorm/backend/prisma/dev.db
+   docker compose --env-file .env.docker restart backend
+
+   # Dọn image build cũ tránh đầy 50 GB SSD:
+   docker image prune -f
+   ```
+
+> ⚠️ **Lưu ý xung đột Telegram Bot (`409 Conflict`):** Không chạy đồng thời `backend` ở máy cá nhân và `backend` trên VPS với cùng một `TELEGRAM_BOT_TOKEN`, vì Telegram chỉ cho phép 1 tiến trình polling (`getUpdates`) tại một thời điểm.
 
 ### Cách 3: Khởi động từng phân hệ thủ công
 
