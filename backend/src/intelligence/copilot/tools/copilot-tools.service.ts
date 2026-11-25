@@ -144,7 +144,7 @@ export class CopilotToolsService {
 
   /**
    * Tool 3: get_energy_forecast
-   * Grounded ML Energy Forecast with LSTM neural network & Prophet baseline.
+   * Grounded ML Energy Forecast with Champion Gradient Boosting Machine (GBM) model.
    */
   async getEnergyForecast(horizon: '24h' | '7d' = '24h', ctx?: CopilotQueryContextDto): Promise<GroundedToolResult> {
     try {
@@ -430,15 +430,13 @@ export class CopilotToolsService {
         isAvailable: true,
         payload: {
           models: [
-            { name: 'Gradient Boosting (GBM)', status: 'HEALTHY_CHAMPION', mae: 8.28, latencyMs: 8, lastTrained: '2026-08-29' },
-            { name: 'LSTM Neural Forecaster', status: 'HEALTHY_CHALLENGER', mae: 8.38, latencyMs: 25, lastTrained: '2026-08-29' },
-            { name: 'Diurnal Ridge Baseline', status: 'STABLE_BASELINE', mae: 28.80, latencyMs: 2 },
-            { name: 'Isolation Forest Anomaly', status: 'HEALTHY', latencyMs: 18, sampleCount: 1282 },
-            { name: 'Random Forest Occupancy', status: 'HEALTHY', accuracy: 0.99, latencyMs: 12 },
+            { name: 'Gradient Boosting (GBM Champion)', status: 'HEALTHY_CHAMPION', mae: 8.28, latencyMs: 8, lastTrained: '2026-08-29' },
+            { name: 'Isolation Forest Anomaly', status: 'HEALTHY', latencyMs: 6, sampleCount: 980000 },
+            { name: 'Spatial Occupancy Classifier', status: 'HEALTHY', accuracy: 0.96, latencyMs: 4 },
           ],
           modelDriftStatus: hasDrift ? 'DRIFT_WARNING' : 'NO_DRIFT',
           stalenessStatus: 'FRESH (< 30 days)',
-          autoRetrainTrigger: 'MAE > 0.60 kW',
+          autoRetrainTrigger: 'MAE > 12.0 kW',
         },
       };
     } catch {
@@ -449,8 +447,8 @@ export class CopilotToolsService {
         isAvailable: true,
         payload: {
           models: [
-            { name: 'LSTM Neural Forecaster', status: 'HEALTHY_CHAMPION', mae: 0.38 },
-            { name: 'Isolation Forest Anomaly', status: 'HEALTHY', sampleCount: 1420 },
+            { name: 'Gradient Boosting (GBM Champion)', status: 'HEALTHY_CHAMPION', mae: 8.28 },
+            { name: 'Isolation Forest Anomaly', status: 'HEALTHY', sampleCount: 980000 },
           ],
           modelDriftStatus: 'NO_DRIFT',
         },

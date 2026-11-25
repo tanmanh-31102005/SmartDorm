@@ -1,12 +1,10 @@
 """
 Forecasting package for SmartDorm ML Service.
+Champion Model: Gradient Boosting Machine (GBM).
 """
-from forecasting.baseline import BaselineForecaster, generate_baseline_forecast
-from forecasting.prophet_model import ProphetForecaster, generate_energy_forecast
+from forecasting.gbm_forecaster import GBMForecaster, generate_gbm_forecast
 
 __all__ = [
-    "BaselineForecaster",
-    "generate_baseline_forecast",
-    "ProphetForecaster",
-    "generate_energy_forecast",
+    "GBMForecaster",
+    "generate_gbm_forecast",
 ]

@@ -111,7 +111,7 @@ export default function IntelligenceOverviewPage() {
             </Badge>
           </div>
           <p className="text-xs text-slate-500 font-medium">
-            Trung tâm trí tuệ nhân tạo giám sát phụ tải năng lượng, phát hiện bất thường thiết bị (Isolation Forest) và tối ưu điều phối lưu trú tự động.
+            Trung tâm trí tuệ nhân tạo giám sát phụ tải hoạt động thiết bị, phát hiện bất thường thiết bị (Isolation Forest) và tối ưu điều phối lưu trú tự động.
           </p>
         </div>
 
@@ -141,15 +141,15 @@ export default function IntelligenceOverviewPage() {
       {/* 2. Top Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          label="DỰ BÁO TIÊU THỤ 24H"
-          value="19,250 kWh"
-          change={{ value: '+8.2%', trend: 'up', label: 'vs hôm qua' }}
-          subValue="Đỉnh tải: 19:30 @ 98.4 kW"
+          label="MÔ HÌNH DỰ BÁO (GBM)"
+          value="96.1% R² Score"
+          change={{ value: 'MAPE 4.69%', trend: 'down', label: 'độ lệch cực thấp' }}
+          subValue="Độ trễ suy luận: < 5ms"
           tag="GBM Champion"
           tagVariant="info"
-          icon={<Zap className="w-4 h-4 text-blue-900" />}
+          icon={<Sparkles className="w-4 h-4 text-blue-900" />}
           iconBg="bg-blue-50 text-blue-900"
-          onClick={() => router.push('/dashboard/intelligence/energy')}
+          onClick={() => router.push('/dashboard/intelligence/models')}
         />
 
         <MetricCard
@@ -179,7 +179,7 @@ export default function IntelligenceOverviewPage() {
         <MetricCard
           label="KHUYẾN NGHỊ CHỜ DUYỆT"
           value={`0${pendingRecs.length} Actionable`}
-          subValue="Ước tính tiết kiệm ~11.5 Tr ₫"
+          subValue="Tự động ngắt rơ-le phòng trống & quạt Gas"
           tag="AI Recommender"
           tagVariant="purple"
           icon={<Sparkles className="w-4 h-4 text-purple-700" />}
@@ -235,21 +235,21 @@ export default function IntelligenceOverviewPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
             <div>
               <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-blue-900" />
+                <Activity className="w-4 h-4 text-blue-900" />
                 <h3 className="text-sm font-bold text-slate-900">
-                  Dự Báo Phụ Tải 24h: Actual vs AI Forecast & Prediction Interval (95%)
+                  Dự Báo Xu Hướng 24h: Actual vs GBM Champion Forecast & Prediction Interval (95%)
                 </h3>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Mô hình Gradient Boosting (GBM) phân tích 15 đặc trưng đa biến (Sensor + Thiết bị + Lịch trình)
+                Mô hình Gradient Boosting (GBM) phân tích 13 đặc trưng đa biến (Cảm biến DHT22, MQ-2, Thiết bị và Lịch trình sinh hoạt)
               </p>
             </div>
 
             <Link
-              href="/dashboard/intelligence/energy"
+              href="/dashboard/intelligence/models"
               className="text-xs font-semibold text-blue-900 hover:underline flex items-center gap-1"
             >
-              <span>Chi tiết dự báo</span>
+              <span>Chi tiết mô hình GBM</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -266,7 +266,7 @@ export default function IntelligenceOverviewPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="time" tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} unit=" kW" />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: '#ffffff',
@@ -303,7 +303,7 @@ export default function IntelligenceOverviewPage() {
                   strokeWidth={2.5}
                   strokeDasharray="4 4"
                   dot={{ r: 3, fill: '#2563eb' }}
-                  name="AI Forecast (kW)"
+                  name="Dự báo GBM Champion"
                 />
 
                 {/* Actual Realtime Line */}
@@ -313,7 +313,7 @@ export default function IntelligenceOverviewPage() {
                   stroke="#1e3a8a"
                   strokeWidth={2.5}
                   dot={{ r: 4, fill: '#1e3a8a' }}
-                  name="Thực tế (kW)"
+                  name="Dữ liệu thực tế"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -321,8 +321,8 @@ export default function IntelligenceOverviewPage() {
 
           <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between text-xs text-slate-500">
             <div className="flex items-center gap-4">
-              <span>Đỉnh phụ tải dự kiến: <strong className="text-slate-900 font-mono">19:30 - 21:00</strong></span>
-              <span>Sai số MAE: <strong className="text-emerald-700 font-mono">0.42 kW (3.8%)</strong></span>
+              <span>Khung giờ cao điểm: <strong className="text-slate-900 font-mono">19:30 - 21:00</strong></span>
+              <span>Độ chính xác: <strong className="text-emerald-700 font-mono">R² = 0.961 (MAPE 4.69%)</strong></span>
             </div>
             <span className="text-[11px] text-blue-900 font-semibold">Cập nhật mỗi 15 phút</span>
           </div>

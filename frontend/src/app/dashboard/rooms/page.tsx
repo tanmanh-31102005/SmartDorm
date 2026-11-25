@@ -27,7 +27,9 @@ import {
   Fan,
   Lock,
   Bell,
-  RefreshCw
+  RefreshCw,
+  UserPlus,
+  Trash2
 } from 'lucide-react';
 
 export default function RoomsPage() {
@@ -40,47 +42,97 @@ export default function RoomsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [inspectRoom, setInspectRoom] = useState<RoomData | null>(null);
 
-  useEffect(() => {
-    async function loadRooms() {
-      try {
-        const res = await api.get('/rooms/overview');
-        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
-          const mapped = res.data.map((r: any) => {
-            const lastSensor = r.sensorData?.[0] || {};
-            const hasAlert = r.emergencies && r.emergencies.length > 0;
-            return {
-              id: r.id,
-              roomNumber: r.roomNumber,
-              floor: r.floor,
-              capacity: r.capacity || 4,
-              occupied: r.users?.length || 0,
-              buildingId: r.buildingId,
-              buildingName: r.building?.name || 'A',
-              temperature: lastSensor.temperature ?? 27.2,
-              humidity: lastSensor.humidity ?? 64,
-              gasLevel: lastSensor.gasLevel ?? 18,
-              gasAlert: lastSensor.gasAlert || false,
-              tempAlert: lastSensor.tempAlert || false,
-              status: hasAlert ? 'critical' : (lastSensor.gasAlert || lastSensor.tempAlert ? 'warning' : 'normal'),
-              devicesCount: r.devices?.length || 4,
-              devices: r.devices || [],
-              residents: (r.users || []).map((u: any) => ({
-                id: u.id,
-                studentId: u.studentId,
-                fullName: u.fullName,
-                phone: u.phone || '0901234567',
-                rfidMasked: u.rfidCardId ? `CARD_****-${u.rfidCardId.slice(-4)}` : 'CARD_****-8392',
-              })),
-            } as any;
-          });
-          setRooms(mapped);
-        }
-      } catch (err) {
-        console.error('Rooms API fallback to dataset', err);
+  // Live student allocation directly inside room drawer
+  const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [studentToAdd, setStudentToAdd] = useState('');
+  const [assigningStudent, setAssigningStudent] = useState(false);
+
+  async function loadRooms() {
+    try {
+      const [resRooms, resStudents] = await Promise.all([
+        api.get('/rooms/overview'),
+        api.get('/rooms/residents/all'),
+      ]);
+
+      if (resRooms.data && Array.isArray(resRooms.data) && resRooms.data.length > 0) {
+        const mapped = resRooms.data.map((r: any) => {
+          const lastSensor = r.sensorData?.[0] || {};
+          const hasAlert = r.emergencies && r.emergencies.length > 0;
+          return {
+            id: r.id,
+            roomNumber: r.roomNumber,
+            floor: r.floor,
+            capacity: r.capacity || 4,
+            occupied: r.users?.length || 0,
+            buildingId: r.buildingId,
+            buildingName: r.building?.name || 'A',
+            temperature: lastSensor.temperature ?? 27.2,
+            humidity: lastSensor.humidity ?? 64,
+            gasLevel: lastSensor.gasLevel ?? 18,
+            gasAlert: lastSensor.gasAlert || false,
+            tempAlert: lastSensor.tempAlert || false,
+            status: hasAlert ? 'critical' : (lastSensor.gasAlert || lastSensor.tempAlert ? 'warning' : 'normal'),
+            devicesCount: r.devices?.length || 4,
+            devices: r.devices || [],
+            residents: (r.users || []).map((u: any) => ({
+              id: u.id,
+              studentId: u.studentId,
+              fullName: u.fullName,
+              phone: u.phone || 'Chưa cập nhật',
+              rfidMasked: u.rfidCardId ? `CARD_****-${u.rfidCardId.slice(-4).toUpperCase()}` : 'Chưa có thẻ',
+            })),
+          } as any;
+        });
+        setRooms(mapped);
+
+        // Keep inspectRoom in sync if drawer is open
+        setInspectRoom((prev) => {
+          if (!prev) return null;
+          return mapped.find((m: any) => m.id === prev.id) || prev;
+        });
       }
+
+      if (Array.isArray(resStudents.data)) {
+        setAllStudents(resStudents.data);
+      }
+    } catch (err) {
+      console.error('Rooms API fallback to dataset', err);
     }
+  }
+
+  useEffect(() => {
     loadRooms();
   }, []);
+
+  async function handleAddStudentToRoom() {
+    if (!inspectRoom || !studentToAdd) return;
+    setAssigningStudent(true);
+    try {
+      await api.patch(`/rooms/residents/${studentToAdd}/assign-room`, {
+        roomId: inspectRoom.id,
+      });
+      success(`Đã xếp sinh viên vào phòng ${inspectRoom.buildingName}${inspectRoom.roomNumber}!`, 'Phân Bổ Thành Công');
+      setStudentToAdd('');
+      await loadRooms();
+    } catch (err: any) {
+      console.error('Error assigning student', err);
+    } finally {
+      setAssigningStudent(false);
+    }
+  }
+
+  async function handleRemoveStudentFromRoom(studentId: string) {
+    if (!inspectRoom) return;
+    try {
+      await api.patch(`/rooms/residents/${studentId}/assign-room`, {
+        roomId: null,
+      });
+      success(`Đã thu hồi phân bổ phòng của sinh viên.`, 'Cập Nhật');
+      await loadRooms();
+    } catch (err: any) {
+      console.error('Error removing student from room', err);
+    }
+  }
 
   const filtered = rooms.filter(r => {
     const matchSearch = 
@@ -412,16 +464,67 @@ export default function RoomsPage() {
 
             {/* Residents Details */}
             <div>
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">
-                Danh Sách Sinh Viên Lưu Trú
-              </h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Danh Sách Sinh Viên Lưu Trú ({inspectRoom.residents?.length || 0}/{inspectRoom.capacity})
+                </h4>
+              </div>
+
+              {/* Add Student to Room form */}
+              <div className="mb-3 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700">
+                  <UserPlus className="w-3.5 h-3.5 text-blue-900" />
+                  <span>Phân bổ sinh viên vào phòng {inspectRoom.buildingName}{inspectRoom.roomNumber}:</span>
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    value={studentToAdd}
+                    onChange={(e) => setStudentToAdd(e.target.value)}
+                    className="flex-1 px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-900"
+                    disabled={inspectRoom.occupied >= inspectRoom.capacity}
+                  >
+                    <option value="">-- Chọn sinh viên để phân bổ --</option>
+                    {allStudents.map((st: any) => {
+                      const isCurrentInRoom = inspectRoom.residents?.some((r: any) => r.id === st.id);
+                      if (isCurrentInRoom) return null;
+                      return (
+                        <option key={st.id} value={st.id}>
+                          {st.fullName} ({st.studentId || 'Chưa MSSV'}) {st.room ? `- P.${st.room.roomNumber}` : '- Chưa có phòng'}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleAddStudentToRoom}
+                    disabled={!studentToAdd || assigningStudent || inspectRoom.occupied >= inspectRoom.capacity}
+                  >
+                    {assigningStudent ? 'Đang thêm...' : 'Thêm vào'}
+                  </Button>
+                </div>
+                {inspectRoom.occupied >= inspectRoom.capacity && (
+                  <p className="text-[10px] text-amber-600 font-medium">⚠️ Phòng này hiện đã đủ công suất ({inspectRoom.capacity} sinh viên).</p>
+                )}
+              </div>
+
               <div className="space-y-2">
                 {inspectRoom.residents && inspectRoom.residents.length > 0 ? (
                   inspectRoom.residents.map((res) => (
                     <div key={res.id} className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-xs text-slate-900">{res.fullName}</span>
-                        <Badge variant="info" size="sm">{res.studentId}</Badge>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="info" size="sm">{res.studentId}</Badge>
+                          <button
+                            onClick={() => handleRemoveStudentFromRoom(res.id)}
+                            className="text-[11px] text-red-600 hover:text-red-700 hover:underline font-semibold ml-2 cursor-pointer inline-flex items-center gap-0.5"
+                            title="Gỡ sinh viên khỏi phòng này"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Gỡ
+                          </button>
+                        </div>
                       </div>
                       <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono">
                         <span className="flex items-center gap-1">

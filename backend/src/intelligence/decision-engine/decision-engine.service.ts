@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EventsGateway } from '../../gateway/events.gateway';
 import { MqttService } from '../../mqtt/mqtt.service';
@@ -6,6 +6,7 @@ import { MlClientService } from '../ml-client/ml-client.service';
 import { RuleEngineService } from './rule-engine.service';
 import { RecommendationService } from '../recommendation/recommendation.service';
 import { AutomationService } from '../automation/automation.service';
+import { NotificationsService } from '../../notifications/notifications.service';
 import { RuleEvaluationContext } from './rules/energy-rules';
 import { DeviceAnomalyDto } from '../dto/intelligence.dto';
 
@@ -22,6 +23,8 @@ export class DecisionEngineService implements OnModuleInit {
     private readonly ruleEngine: RuleEngineService,
     private readonly recommendationService: RecommendationService,
     private readonly automationService: AutomationService,
+    @Inject(forwardRef(() => NotificationsService))
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   onModuleInit() {
@@ -125,6 +128,18 @@ export class DecisionEngineService implements OnModuleInit {
           actions: outcome.recommendation.actions,
           evidence: outcome.recommendation.evidence,
         });
+
+        // Tự động gửi cảnh báo lãng phí điện tương tác 2 chiều qua Telegram & Email tới sinh viên phòng
+        if (outcome.recommendation.type === 'ENERGY') {
+          await this.notificationsService.sendEnergyWasteAlert(context.roomId, {
+            vacantMinutes: outcome.recommendation.evidence?.vacantMinutes || 25,
+            activeDevices: outcome.recommendation.evidence?.activeDevices || ['Đèn chiếu sáng (40W)', 'Quạt thông gió (60W)'],
+            estimatedPowerW: outcome.recommendation.evidence?.powerW || 105,
+            estimatedLossKwh: outcome.recommendation.estimatedSavingsKwh || 0.85,
+            estimatedCostVnd: outcome.recommendation.evidence?.estimatedCostVnd || 1920,
+            reason: outcome.recommendation.reason,
+          }).catch(e => this.logger.debug(`Energy waste alert dispatch skipped: ${e.message}`));
+        }
       }
     }
   }

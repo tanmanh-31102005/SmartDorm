@@ -1,11 +1,11 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { DevicesService } from '../devices/devices.service';
 
 @Injectable()
-export class NotificationsService {
+export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger('NotificationsService');
   private transporter: nodemailer.Transporter | null = null;
 
@@ -16,6 +16,17 @@ export class NotificationsService {
     private readonly devicesService: DevicesService,
   ) {
     this.initMailTransporter();
+  }
+
+  private isPollingTelegram = false;
+  private lastTelegramUpdateId = 0;
+
+  onModuleInit() {
+    this.startTelegramPolling();
+  }
+
+  onModuleDestroy() {
+    this.isPollingTelegram = false;
   }
 
   private initMailTransporter() {
@@ -242,6 +253,88 @@ export class NotificationsService {
     await this.sendTelegram(msg);
   }
 
+  // ==================== AI ENERGY WASTE ALERTS ====================
+
+  async sendEnergyWasteAlert(
+    roomId: string,
+    details: {
+      vacantMinutes?: number;
+      activeDevices?: string[];
+      estimatedPowerW?: number;
+      estimatedLossKwh?: number;
+      estimatedCostVnd?: number;
+      reason?: string;
+    },
+  ): Promise<void> {
+    const room = await this.prisma.room.findFirst({
+      where: { OR: [{ id: roomId }, { roomNumber: roomId }] },
+      include: { building: true, users: true },
+    });
+    if (!room) return;
+
+    const roomNumber = room.roomNumber;
+    const buildingName = room.building?.name || 'A';
+    const targetRoomId = room.id;
+    const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    const vacantMins = details.vacantMinutes || 25;
+    const activeDevStr = details.activeDevices && details.activeDevices.length > 0 ? details.activeDevices.join(', ') : 'Đèn & Quạt';
+    const powerW = details.estimatedPowerW || 85;
+    const lossKwh = (details.estimatedLossKwh || 0.85).toFixed(2);
+    const costVnd = (details.estimatedCostVnd || 1920).toLocaleString('vi-VN');
+
+    // 1. Telegram Interactive Message with Inline Action Buttons
+    const teleMsg = `⚠️ <b>[NHẮC NHỞ TIẾT KIỆM NĂNG LƯỢNG KTX]</b> ⚠️\n` +
+      `🏢 <b>Khu vực:</b> Phòng <b>${buildingName}-${roomNumber}</b>\n` +
+      `⏱️ <b>Thời gian phát hiện:</b> ${timeStr}\n` +
+      `🚫 <b>Hiện trạng:</b> Phòng <b>TRỐNG</b> không có sinh viên suốt <b>${vacantMins} phút</b> qua.\n` +
+      `🔌 <b>Thiết bị đang bật:</b> ${activeDevStr} (Tổng CS: ~${powerW}W)\n` +
+      `📉 <b>Dự báo điện năng lãng phí:</b> <code>${lossKwh} kWh</code> (~<b>${costVnd} ₫</b>/buổi)\n\n` +
+      `👉 <i>Sinh viên có muốn tắt thiết bị từ xa để tiết kiệm điện không?</i>`;
+
+    const inlineKeyboard = {
+      inline_keyboard: [
+        [
+          { text: `⚡ Tắt Đèn P.${roomNumber}`, callback_data: `DEV:${targetRoomId}:LIGHT:off` },
+          { text: `🌪️ Tắt Quạt P.${roomNumber}`, callback_data: `DEV:${targetRoomId}:FAN:off` },
+        ],
+        [
+          { text: `🛑 Tắt Toàn Bộ Thiết Bị P.${roomNumber}`, callback_data: `DEV:${targetRoomId}:ALL:off` },
+        ],
+      ],
+    };
+
+    await this.sendTelegram(teleMsg, inlineKeyboard);
+
+    // 2. Email Notification to all students in room & Admin
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #fde047; border-radius: 12px; background: #fefce8;">
+        <div style="background: #ca8a04; padding: 12px 16px; border-radius: 8px; color: white; margin-bottom: 16px;">
+          <h2 style="margin: 0; font-size: 16px;">⚠️ CẢNH BÁO QUÊN TẮT THIẾT BỊ ĐIỆN — SMARTDORM</h2>
+        </div>
+        <p>Xin chào sinh viên Phòng <b>${buildingName}-${roomNumber}</b>,</p>
+        <p>Hệ thống AI giám sát năng lượng KTX ghi nhận phòng của bạn hiện <b>không có người</b> từ ${timeStr} nhưng thiết bị vẫn đang tiêu thụ điện:</p>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px; background: #ffffff; border-radius: 6px; overflow: hidden;">
+          <tr style="border-bottom: 1px solid #fef08a;"><td style="padding: 8px 12px; font-weight: bold; color: #713f12;">Thiết bị đang bật:</td><td style="padding: 8px 12px; font-weight: bold; color: #b45309;">${activeDevStr} (~${powerW}W)</td></tr>
+          <tr style="border-bottom: 1px solid #fef08a;"><td style="padding: 8px 12px; font-weight: bold; color: #713f12;">Thời gian vắng người:</td><td style="padding: 8px 12px;">${vacantMins} phút</td></tr>
+          <tr style="border-bottom: 1px solid #fef08a;"><td style="padding: 8px 12px; font-weight: bold; color: #713f12;">Điện năng lãng phí dự kiến:</td><td style="padding: 8px 12px; color: #dc2626; font-weight: bold;">${lossKwh} kWh</td></tr>
+          <tr><td style="padding: 8px 12px; font-weight: bold; color: #713f12;">Chi phí phát sinh ước tính:</td><td style="padding: 8px 12px; color: #dc2626; font-weight: bold;">${costVnd} ₫</td></tr>
+        </table>
+        <p style="font-size: 13px; color: #854d0e;">Bạn có thể mở ứng dụng sinh viên SmartDorm hoặc tương tác với Telegram Bot để tắt thiết bị từ xa. Hệ thống sẽ tự động ngắt điện sau 30 phút để bảo vệ an toàn và tiết kiệm chi phí.</p>
+      </div>
+    `;
+
+    const adminEmail = process.env.SMTP_USER || 'tanmanh312805@gmail.com';
+    await this.sendEmail(adminEmail, `⚠️ [TIẾT KIỆM ĐIỆN] Nhắc nhở tắt thiết bị Phòng ${roomNumber}`, emailHtml);
+
+    if (room.users && room.users.length > 0) {
+      for (const u of room.users) {
+        if (u.email && u.email !== adminEmail) {
+          await this.sendEmail(u.email, `⚠️ [SMARTDORM] Nhắc nhở tắt điện Phòng ${roomNumber}`, emailHtml);
+        }
+      }
+    }
+  }
+
   // ==================== MONTHLY UTILITY BILL NOTIFICATIONS ====================
 
   async sendMonthlyBillsToStudents(): Promise<{ totalSent: number; details: any[] }> {
@@ -317,31 +410,252 @@ export class NotificationsService {
 
   // ==================== TELEGRAM CALLBACK ACTIONS ====================
 
-  async executeTelegramAction(callbackData: string): Promise<{ success: boolean; message: string }> {
+  async executeTelegramAction(callbackData?: string): Promise<{ success: boolean; message: string }> {
     this.logger.log(`Executing Telegram callback action: ${callbackData}`);
+    if (!callbackData || typeof callbackData !== 'string') {
+      return {
+        success: false,
+        message: 'Thiếu callbackData. Định dạng hợp lệ: DEV:room-101:LIGHT:on, DEV:room-101:FAN:on, STATUS, EMERGENCY:UNLOCK_ALL',
+      };
+    }
     try {
       const parts = callbackData.split(':');
       if (parts[0] === 'DEV') {
         const [, roomId, deviceType, action] = parts;
+        if (deviceType === 'ALL') {
+          await this.devicesService.sendCommand(roomId, 'LIGHT', 'off');
+          await this.devicesService.sendCommand(roomId, 'FAN', 'off');
+          return { success: true, message: `Đã TẮT TOÀN BỘ Thiết Bị tại Phòng ${roomId} (Đèn & Quạt)` };
+        }
         await this.devicesService.sendCommand(roomId, deviceType, action);
-        return { success: true, message: `Đã thực thi thành công lệnh ${action.toUpperCase()} cho ${deviceType} tại phòng ${roomId}` };
+        const actionLabel = action === 'on' ? 'BẬT' : action === 'off' ? 'TẮT' : action === 'unlock' ? 'MỞ KHÓA' : 'KHÓA';
+        return { success: true, message: `Đã ${actionLabel} ${deviceType} tại Phòng ${roomId} (Cập nhật tức thời Web UI & Phần cứng)` };
+      }
+
+      if (parts[0] === 'STATUS') {
+        const room = await this.prisma.room.findFirst({
+          where: { roomNumber: '101' },
+          include: { devices: true, sensorData: { orderBy: { recordedAt: 'desc' }, take: 1 } },
+        });
+        const latestSensor = room?.sensorData?.[0];
+        const statusMsg = `📊 <b>[BÁO CÁO NHANH PHÒNG 101]</b>\n` +
+          `• Nhiệt độ: <b>${latestSensor?.temperature ?? 27.5}°C</b>\n` +
+          `• Độ ẩm: <b>${latestSensor?.humidity ?? 64}%</b>\n` +
+          `• Khí Gas MQ-2: <b>${latestSensor?.gasLevel ?? 15}%</b>\n` +
+          `• Đèn chiếu sáng: <b>${room?.devices?.find(d => d.type === 'LIGHT')?.isOn ? 'ĐANG BẬT' : 'ĐÃ TẮT'}</b>\n` +
+          `• Quạt thông gió: <b>${room?.devices?.find(d => d.type === 'FAN')?.isOn ? 'ĐANG BẬT' : 'ĐÃ TẮT'}</b>\n` +
+          `• Khóa cửa: <b>${room?.devices?.find(d => d.type === 'DOOR_LOCK')?.isOn ? 'ĐANG MỞ CHỐT' : 'ĐÃ KHÓA CHẶT'}</b>\n` +
+          `• Còi báo động: <b>${room?.devices?.find(d => d.type === 'BUZZER')?.isOn ? 'HÚ BÁO ĐỘNG' : 'CHẾ ĐỘ CHỜ'}</b>`;
+        await this.sendTelegram(statusMsg);
+        return { success: true, message: 'Đã cập nhật trạng thái phòng 101' };
       }
 
       if (parts[0] === 'EMERGENCY') {
         const actionType = parts[1];
         if (actionType === 'UNLOCK_ALL') {
-          // Mở khóa toàn bộ phòng
           const rooms = await this.prisma.room.findMany();
           for (const r of rooms) {
             await this.devicesService.sendCommand(r.id, 'DOOR_LOCK', 'unlock').catch(() => {});
           }
-          return { success: true, message: 'Đã phát lệnh mở toàn bộ chốt khóa cửa KTX!' };
+          return { success: true, message: 'Đã phát lệnh mở toàn bộ chốt khóa cửa KTX để cứu nạn!' };
         }
       }
 
       return { success: false, message: 'Lệnh không hợp lệ' };
     } catch (err: any) {
       return { success: false, message: `Thất bại: ${err.message}` };
+    }
+  }
+
+  // ==================== TELEGRAM BOT POLLING ====================
+
+  private async startTelegramPolling() {
+    if (this.isPollingTelegram) return;
+    this.isPollingTelegram = true;
+    this.logger.log('🚀 Khởi chạy vòng lặp Telegram Bot Polling (Hai chiều Web & Phần cứng)...');
+
+    // Chạy ngầm không block tiến trình NestJS
+    (async () => {
+      while (this.isPollingTelegram) {
+        const settings = this.settingsService.getSettings();
+        const token = settings.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN;
+
+        if (!token || token === 'YOUR_TELEGRAM_BOT_TOKEN') {
+          await new Promise((r) => setTimeout(r, 10000));
+          continue;
+        }
+
+        try {
+          const url = `https://api.telegram.org/bot${token}/getUpdates?offset=${this.lastTelegramUpdateId + 1}&timeout=15`;
+          const res = await fetch(url);
+          const data = await res.json();
+
+          if (data.ok && Array.isArray(data.result)) {
+            for (const update of data.result) {
+              this.lastTelegramUpdateId = update.update_id;
+              await this.processTelegramUpdate(token, update);
+            }
+          } else {
+            await new Promise((r) => setTimeout(r, 3000));
+          }
+        } catch (err: any) {
+          // Bắt lỗi timeout hoặc mạng chập chờn
+          await new Promise((r) => setTimeout(r, 5000));
+        }
+      }
+    })();
+  }
+
+  private async processTelegramUpdate(token: string, update: any) {
+    try {
+      // 1. Nhận sự kiện khi người dùng bấm nút Inline Keyboard trên Telegram
+      if (update.callback_query) {
+        const cb = update.callback_query;
+        const callbackData = cb.data;
+        this.logger.log(`[Telegram Bot] Nhận tương tác nút bấm: ${callbackData}`);
+
+        const result = await this.executeTelegramAction(callbackData);
+
+        // Trả lời Telegram để tắt hiệu ứng loading trên nút
+        await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            callback_query_id: cb.id,
+            text: result.message,
+          }),
+        }).catch(() => {});
+
+        // Gửi thông báo xác nhận phản hồi lại
+        await this.sendTelegram(`⚡ <b>[Phản Hồi Telegram Bot]</b>\n${result.message}`);
+        return;
+      }
+
+      // 2. Nhận tin nhắn chat văn bản / lệnh /
+      if (update.message && update.message.text) {
+        const rawText = update.message.text.trim();
+        const text = rawText.toLowerCase();
+        this.logger.log(`[Telegram Bot] Nhận tin nhắn chat: "${rawText}"`);
+
+        // Menu tương tác
+        if (text === '/start' || text === '/help' || text === '/menu') {
+          const menuMsg = `🏠 <b>SMART DORMITORY — BẢNG ĐIỀU KHIỂN TỨC THÌ</b>\n\n` +
+            `Bạn có thể bấm trực tiếp các nút bên dưới hoặc gõ lệnh nhanh:\n` +
+            `• <code>/batden</code> / <code>/tatden</code> : Bật/Tắt Đèn P.101\n` +
+            `• <code>/batquat</code> / <code>/tatquat</code> : Bật/Tắt Quạt P.101\n` +
+            `• <code>/mocua</code> / <code>/khoacua</code> : Mở/Khóa Chốt Cửa\n` +
+            `• <code>/batcoi</code> / <code>/tatcoi</code> : Bật/Tắt Còi Báo Động\n` +
+            `• <code>/status</code> : Xem Thông Số & Trạng Thái Toàn Bộ`;
+
+          const inlineKeyboard = {
+            inline_keyboard: [
+              [
+                { text: '⚡ Bật Đèn P.101', callback_data: 'DEV:room-101:LIGHT:on' },
+                { text: '🌑 Tắt Đèn P.101', callback_data: 'DEV:room-101:LIGHT:off' },
+              ],
+              [
+                { text: '🌪️ Bật Quạt P.101', callback_data: 'DEV:room-101:FAN:on' },
+                { text: '⏹️ Tắt Quạt P.101', callback_data: 'DEV:room-101:FAN:off' },
+              ],
+              [
+                { text: '🔓 Mở Chốt Cửa P.101', callback_data: 'DEV:room-101:DOOR_LOCK:unlock' },
+                { text: '🔒 Khóa Cửa P.101', callback_data: 'DEV:room-101:DOOR_LOCK:lock' },
+              ],
+              [
+                { text: '🚨 Bật Còi Báo Động', callback_data: 'DEV:room-101:BUZZER:on' },
+                { text: '🔇 Tắt Còi Báo Động', callback_data: 'DEV:room-101:BUZZER:off' },
+              ],
+              [
+                { text: '📊 Xem Trạng Thái', callback_data: 'STATUS:101' },
+                { text: '🆘 Mở Toàn Bộ Cửa KTX', callback_data: 'EMERGENCY:UNLOCK_ALL' },
+              ],
+            ],
+          };
+
+          await this.sendTelegram(menuMsg, inlineKeyboard);
+          return;
+        }
+
+        // Lệnh Bật/Tắt Đèn
+        if (text === '/batden' || text === '/light_on' || text === '/den_on') {
+          await this.devicesService.sendCommand('101', 'LIGHT', 'on');
+          await this.sendTelegram('💡 <b>[Thành Công]</b> Đã BẬT Đèn Phòng 101!\n<i>(Rơ-le nhảy, bóng đèn LED sáng, giao diện Web đã chuyển sang BẬT)</i>');
+          return;
+        }
+        if (text === '/tatden' || text === '/light_off' || text === '/den_off') {
+          await this.devicesService.sendCommand('101', 'LIGHT', 'off');
+          await this.sendTelegram('🌑 <b>[Thành Công]</b> Đã TẮT Đèn Phòng 101!\n<i>(Rơ-le nhả, bóng đèn LED tắt, giao diện Web đã chuyển sang TẮT)</i>');
+          return;
+        }
+
+        // Lệnh Bật/Tắt Quạt
+        if (text === '/batquat' || text === '/fan_on' || text === '/quat_on') {
+          await this.devicesService.sendCommand('101', 'FAN', 'on');
+          await this.sendTelegram('🌪️ <b>[Thành Công]</b> Đã BẬT Quạt Thông Gió Phòng 101!\n<i>(Rơ-le quạt nhảy, bóng LED quạt sáng, giao diện Web quay tít)</i>');
+          return;
+        }
+        if (text === '/tatquat' || text === '/fan_off' || text === '/quat_off') {
+          await this.devicesService.sendCommand('101', 'FAN', 'off');
+          await this.sendTelegram('⏹️ <b>[Thành Công]</b> Đã TẮT Quạt Thông Gió Phòng 101!');
+          return;
+        }
+
+        // Lệnh Mở/Khóa Cửa
+        if (text === '/mocua' || text === '/door_unlock' || text === '/mocur') {
+          await this.devicesService.sendCommand('101', 'DOOR_LOCK', 'unlock');
+          await this.sendTelegram('🔓 <b>[Thành Công]</b> Đã MỞ CHỐT Khóa Cửa Phòng 101!\n<i>(Cửa mở trong 4 giây rồi tự động khóa an toàn, còi kêu 1 tiếng bíp)</i>');
+          return;
+        }
+        if (text === '/khoacua' || text === '/door_lock') {
+          await this.devicesService.sendCommand('101', 'DOOR_LOCK', 'lock');
+          await this.sendTelegram('🔒 <b>[Thành Công]</b> Đã KHÓA CHỐT Cửa Phòng 101!');
+          return;
+        }
+
+        // Lệnh Còi Báo Động
+        if (text === '/batcoi' || text === '/alarm_on' || text === '/coi_on' || text === '/siren') {
+          await this.devicesService.sendCommand('101', 'BUZZER', 'on');
+          await this.sendTelegram('🚨 <b>[Khẩn Cấp]</b> Đã KÍCH HOẠT CÒI BÁO ĐỘNG HÚ VANG!\n<i>(Còi Buzzer trên phần cứng đang kêu tít tít, đèn LED đỏ nhấp nháy, Web cảnh báo đỏ)</i>');
+          return;
+        }
+        if (text === '/tatcoi' || text === '/alarm_off' || text === '/coi_off') {
+          await this.devicesService.sendCommand('101', 'BUZZER', 'off');
+          await this.sendTelegram('🔇 <b>[Thành Công]</b> Đã TẮT CÒI BÁO ĐỘNG!\n<i>(Còi trên thiết bị im lặng, trạng thái Web đã về Chế độ chờ)</i>');
+          return;
+        }
+
+        // Lệnh Trạng Thái
+        if (text === '/status' || text === '/trangthai') {
+          const room = await this.prisma.room.findFirst({
+            where: { roomNumber: '101' },
+            include: { devices: true, sensorData: { orderBy: { recordedAt: 'desc' }, take: 1 } },
+          });
+          const latestSensor = room?.sensorData?.[0];
+          const temp = latestSensor ? `${latestSensor.temperature}°C` : '27.5°C';
+          const hum = latestSensor ? `${latestSensor.humidity}%` : '64%';
+          const gas = latestSensor ? `${latestSensor.gasLevel}%` : '15%';
+
+          const lightDev = room?.devices?.find(d => d.type === 'LIGHT');
+          const fanDev = room?.devices?.find(d => d.type === 'FAN');
+          const doorDev = room?.devices?.find(d => d.type === 'DOOR_LOCK');
+          const buzzerDev = room?.devices?.find(d => d.type === 'BUZZER');
+
+          const statusMsg = `📊 <b>[TRẠNG THÁI HIỆN TẠI PHÒNG 101]</b>\n\n` +
+            `🌡️ <b>Nhiệt độ:</b> ${temp}\n` +
+            `💧 <b>Độ ẩm:</b> ${hum}\n` +
+            `💨 <b>Khí gas MQ-2:</b> ${gas}\n\n` +
+            `💡 <b>Đèn:</b> ${lightDev?.isOn ? 'BẬT (ON)' : 'TẮT (OFF)'}\n` +
+            `🌪️ <b>Quạt:</b> ${fanDev?.isOn ? 'BẬT (ON)' : 'TẮT (OFF)'}\n` +
+            `🚪 <b>Cửa:</b> ${doorDev?.isOn ? 'MỞ (UNLOCKED)' : 'KHÓA (LOCKED)'}\n` +
+            `🚨 <b>Còi:</b> ${buzzerDev?.isOn ? 'HÚ BÁO ĐỘNG (ON)' : 'CHẾ ĐỘ CHỜ (OFF)'}\n\n` +
+            `Gõ <code>/menu</code> để mở bảng điều khiển.`;
+
+          await this.sendTelegram(statusMsg);
+          return;
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Error processing Telegram update: ${err.message}`);
     }
   }
 }

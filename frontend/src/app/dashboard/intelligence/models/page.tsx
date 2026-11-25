@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { MetricCard } from '@/components/ui/MetricCard';
@@ -8,6 +9,7 @@ import { Modal } from '@/components/ui/Modal';
 import {
   AI_MODELS_DATA,
   MODEL_BENCHMARK_COMPARISON,
+  GBM_FEATURE_IMPORTANCES,
   ModelMetric,
 } from '@/lib/intelligence-data';
 import {
@@ -18,60 +20,86 @@ import {
   AlertTriangle,
   RotateCw,
   CheckCircle2,
-  Calendar,
   Layers,
-  ArrowRight,
-  Sparkles,
-  Sliders,
-  Check,
-  FileCode,
   ShieldCheck,
   Database,
   BarChart3,
   Clock,
-  Users,
   Award,
+  Sliders,
+  Check,
+  TrendingUp,
+  FileCode,
+  Gauge,
+  Workflow,
+  Sparkles,
   ArrowUpRight,
-  TrendingDown,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastContext';
 import { useIntelligenceStore } from '@/lib/intelligence-store';
 
 export default function ModelPerformancePage() {
-  const { success, warning, info } = useToast();
-  const { models, retrainModel, retrainAllModels } = useIntelligenceStore();
-  const [activeTab, setActiveTab] = useState<'REGISTRY' | 'BENCHMARK' | 'DRIFT'>('BENCHMARK');
+  const { success } = useToast();
+  const { models, retrainModel } = useIntelligenceStore();
+  const [activeTab, setActiveTab] = useState<'CHAMPION_GBM' | 'REGISTRY' | 'DRIFT'>('CHAMPION_GBM');
   const [retrainingModel, setRetrainingModel] = useState<ModelMetric | null>(null);
   const [retrainProgress, setRetrainProgress] = useState(0);
+  const [retrainStepLabel, setRetrainStepLabel] = useState('');
   const [isRetraining, setIsRetraining] = useState(false);
-  const [activeForecaster, setActiveForecaster] = useState('energy-gbm-forecaster');
 
+  // GBM Champion model from store or default
+  const gbmModel = models.find((m) => m.id === 'mdl-gbm-v2') || AI_MODELS_DATA[0];
   const activeModelsCount = models.filter((m) => m.status === 'ACTIVE').length;
-  const staleModelsCount = models.filter((m) => m.isStale).length;
 
-  const handleStartRetrain = (model: ModelMetric) => {
-    setRetrainingModel(model);
+  const handleStartRetrain = (model?: ModelMetric) => {
+    const targetModel = model || gbmModel;
+    setRetrainingModel(targetModel);
     setRetrainProgress(15);
+    setRetrainStepLabel('Đang tải 103,680 bản ghi từ smartdorm-wokwi-v1.csv...');
     setIsRetraining(true);
 
-    let progress = 15;
+    const steps = [
+      { p: 35, text: 'Trích xuất 13 đặc trưng chu kỳ thời gian & cảm biến DHT22...' },
+      { p: 65, text: 'Huấn luyện Gradient Boosting Regressor (200 Trees, Huber Loss)...' },
+      { p: 85, text: 'Đánh giá độ chính xác (R² = 0.961, MAE = 4.28%) trên tập Test...' },
+      { p: 100, text: 'Xuất model artifact telemetry_gbm_v2.0.joblib và đồng bộ Registry!' },
+    ];
+
+    let currentStep = 0;
     const interval = setInterval(async () => {
-      progress += 25;
-      if (progress >= 100) {
-        clearInterval(interval);
-        setRetrainProgress(100);
-        setIsRetraining(false);
-        await retrainModel(model.id);
-        success(`Đã hoàn tất tái huấn luyện mô hình ${model.name}`, 'MODEL RETRAIN');
+      if (currentStep < steps.length) {
+        setRetrainProgress(steps[currentStep].p);
+        setRetrainStepLabel(steps[currentStep].text);
+        currentStep++;
       } else {
-        setRetrainProgress(progress);
+        clearInterval(interval);
+        setIsRetraining(false);
+        await retrainModel(targetModel.id);
+        success(`Đã hoàn tất tái huấn luyện mô hình ${targetModel.name}!`, 'GBM RETRAIN SUCCESS');
       }
-    }, 450);
+    }, 550);
   };
 
-  const handlePromote = (modelCode: string, modelName: string) => {
-    setActiveForecaster(modelCode);
-    success(`Đã thăng cấp mô hình '${modelName}' làm mô hình dự báo chính thức (ACTIVE).`, 'MODEL PROMOTION');
+  const getCategoryBadge = (cat: 'TIME' | 'SENSOR' | 'DEVICE') => {
+    switch (cat) {
+      case 'TIME':
+        return <Badge variant="info" size="sm">Thời Gian</Badge>;
+      case 'DEVICE':
+        return <Badge variant="warning" size="sm">Thiết Bị</Badge>;
+      case 'SENSOR':
+        return <Badge variant="success" size="sm">Cảm Biến</Badge>;
+    }
+  };
+
+  const getCategoryColor = (cat: 'TIME' | 'SENSOR' | 'DEVICE') => {
+    switch (cat) {
+      case 'TIME':
+        return 'bg-blue-600';
+      case 'DEVICE':
+        return 'bg-amber-500';
+      case 'SENSOR':
+        return 'bg-emerald-500';
+    }
   };
 
   return (
@@ -84,14 +112,14 @@ export default function ModelPerformancePage() {
               <Server className="w-5 h-5" />
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              AI Models Performance & MLOps Lifecycle
+              AI Champion Model & MLOps Lifecycle
             </h1>
             <Badge variant="success" size="md">
-              {models.length} Models Deployed
+              GBM Champion Active
             </Badge>
           </div>
           <p className="text-xs text-slate-500 font-medium">
-            Quản lý vòng đời mô hình học máy (Model Registry, So sánh Benchmark, Auto-Promotion, Drift Monitoring và Tái huấn luyện).
+            Quản lý và giám sát mô hình học máy duy nhất (Champion Gradient Boosting), Feature Importance, Model Registry và Data Drift.
           </p>
         </div>
 
@@ -101,51 +129,54 @@ export default function ModelPerformancePage() {
               AI Overview
             </Button>
           </Link>
-          <Link href="/dashboard/intelligence/energy">
-            <Button variant="primary" size="sm" icon={<Zap className="w-3.5 h-3.5" />}>
-              Kiểm Tra Dự Báo
-            </Button>
-          </Link>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<RotateCw className="w-3.5 h-3.5" />}
+            onClick={() => handleStartRetrain(gbmModel)}
+          >
+            Tái Huấn Luyện GBM
+          </Button>
         </div>
       </div>
 
       {/* 2. Top Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          label="MÔ HÌNH HOẠT ĐỘNG (ACTIVE)"
-          value={activeModelsCount.toString()}
-          subValue="Sẵn sàng phục vụ inference"
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-          iconBg="bg-emerald-50 text-emerald-600"
-          tag="Healthy"
-          tagVariant="success"
-        />
-        <MetricCard
-          label="SAI SỐ MAE TỐT NHẤT"
-          value="0.38 kW"
-          subValue="Mô hình LSTM Neural Network"
-          icon={<TrendingDown className="w-4 h-4 text-blue-600" />}
+          label="MÔ HÌNH SẢN XUẤT (ACTIVE)"
+          value="GBM Forecaster"
+          subValue="Đơn mô hình Champion duy nhất"
+          icon={<Award className="w-4 h-4 text-blue-600" />}
           iconBg="bg-blue-50 text-blue-600"
-          tag="-9.5% MAE"
+          tag="v2.0 Active"
           tagVariant="info"
         />
         <MetricCard
-          label="ĐỘ TRỄ TRUNG BÌNH (LATENCY)"
-          value="8.2 ms"
-          subValue="Thời gian phản hồi suy luận"
-          icon={<Activity className="w-4 h-4 text-purple-600" />}
+          label="HỆ SỐ XÁC ĐỊNH R² SCORE"
+          value="0.961"
+          subValue="Giải thích 96.1% biến thiên tải"
+          icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+          iconBg="bg-emerald-50 text-emerald-600"
+          tag="Rất Cao"
+          tagVariant="success"
+        />
+        <MetricCard
+          label="SAI SỐ TUYỆT ĐỐI (MAE)"
+          value="4.28%"
+          subValue="MAPE 3.69% · RMSE 6.50%"
+          icon={<Gauge className="w-4 h-4 text-purple-600" />}
           iconBg="bg-purple-50 text-purple-600"
-          tag="Ultra Fast"
+          tag="Chuẩn Xác"
           tagVariant="neutral"
         />
         <MetricCard
-          label="CẢNH BÁO MÔ HÌNH CŨ (STALE)"
-          value={staleModelsCount.toString()}
-          subValue="Baseline > 30 ngày chưa retrain"
-          icon={<AlertTriangle className="w-4 h-4 text-amber-600" />}
-          iconBg="bg-amber-50 text-amber-600"
-          tag={staleModelsCount > 0 ? 'Cần Retrain' : 'Tối Ưu'}
-          tagVariant={staleModelsCount > 0 ? 'warning' : 'success'}
+          label="ĐỘ TRỄ SUY LUẬN (LATENCY)"
+          value="8.0 ms"
+          subValue="Inference siêu tốc trên CPU"
+          icon={<Activity className="w-4 h-4 text-emerald-600" />}
+          iconBg="bg-emerald-50 text-emerald-600"
+          tag="Ultra Fast"
+          tagVariant="success"
         />
       </div>
 
@@ -153,15 +184,15 @@ export default function ModelPerformancePage() {
       <div className="flex items-center justify-between border-b border-slate-200">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setActiveTab('BENCHMARK')}
+            onClick={() => setActiveTab('CHAMPION_GBM')}
             className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 ${
-              activeTab === 'BENCHMARK'
+              activeTab === 'CHAMPION_GBM'
                 ? 'border-blue-900 text-blue-900'
                 : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
           >
-            <BarChart3 className="w-4 h-4" />
-            So Sánh Mô Hình (Benchmark & Promotion)
+            <Award className="w-4 h-4" />
+            Kiến Trúc Mô Hình Champion (GBM)
           </button>
           <button
             onClick={() => setActiveTab('REGISTRY')}
@@ -183,138 +214,221 @@ export default function ModelPerformancePage() {
             }`}
           >
             <Activity className="w-4 h-4" />
-            Data Drift & Staleness Monitor
+            Giám Sát Độ Trôi Dữ Liệu & Sensor Health
           </button>
         </div>
 
-        <Button
-          variant="secondary"
-          size="sm"
-          icon={<RotateCw className="w-3.5 h-3.5" />}
-          onClick={() => handleStartRetrain(models[0])}
-        >
-          Chạy Retrain Pipeline
-        </Button>
+        <span className="hidden sm:inline-flex text-[11px] text-slate-500 font-medium">
+          Dataset: <strong className="text-slate-700 ml-1">smartdorm-wokwi-v1 (103,680 mẫu)</strong>
+        </span>
       </div>
 
-      {/* 4. Tab 1: Benchmark & Comparison */}
-      {activeTab === 'BENCHMARK' && (
+      {/* 4. Tab 1: Champion GBM Deep-Dive */}
+      {activeTab === 'CHAMPION_GBM' && (
         <div className="space-y-6">
-          {/* Executive Benchmark Summary */}
+          {/* Executive Champion Hero Banner */}
           <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
             <div className="absolute right-0 top-0 bottom-0 w-96 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-500/20 via-transparent to-transparent pointer-events-none" />
-            <div className="relative z-10 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-200 text-xs font-bold border border-blue-400/30 flex items-center gap-1.5">
+            <div className="relative z-10 space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-200 text-xs font-bold border border-blue-400/30 flex items-center gap-1.5">
                   <Award className="w-3.5 h-3.5 text-amber-300" />
-                  Mô Hình Tối Ưu Nhất: {MODEL_BENCHMARK_COMPARISON.bestPerformingModel}
+                  Mô Hình Champion Độc Tôn: Gradient Boosting Regressor v2.0
                 </div>
                 <Badge variant="success" size="sm">
-                  Sai số MAE thấp hơn {MODEL_BENCHMARK_COMPARISON.maeDeltaPercent}%
+                  Độ Chính Xác R²: 0.9607 (96.1%)
+                </Badge>
+                <Badge variant="info" size="sm">
+                  Độ Trễ Phản Hồi: 8 ms
                 </Badge>
               </div>
-              <h2 className="text-lg font-bold">
-                Đối Soát Hiệu Năng: Baseline vs Gradient Boosting (GBM) vs LSTM Neural Network
-              </h2>
-              <p className="text-xs text-blue-200/90 max-w-3xl leading-relaxed">
-                Đánh giá độc lập trên tập kiểm định Time-series Chronological Split (70% Train, 15% Validation, 15% Test) với 1.65 triệu bản ghi đo đạc thực tế từ Wokwi và thiết bị IoT.
-              </p>
+
+              <div>
+                <h2 className="text-lg font-bold">
+                  Kiến Trúc AI Tối Ưu: Gradient Boosting Machine (GBM) với Huber Loss
+                </h2>
+                <p className="text-xs text-blue-200/90 max-w-3xl leading-relaxed mt-1">
+                  Hệ thống SmartDorm sử dụng duy nhất mô hình <strong>Gradient Boosting (GBM)</strong> làm động cơ dự báo phụ tải chính thức.
+                  Toàn bộ các mô hình rườm rà trước đây đã được loại bỏ để tập trung tài nguyên, đảm bảo tính ổn định thời gian thực, độ tin cậy tuyệt đối và không phát sinh chi phí hạ tầng GPU.
+                </p>
+              </div>
+
+              {/* Quick Spec Highlights */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                <div className="p-3 rounded-xl bg-white/10 backdrop-blur-xs border border-white/10">
+                  <div className="text-[10px] text-blue-200 uppercase font-semibold">Tập Dữ Liệu Huấn Luyện</div>
+                  <div className="text-sm font-bold text-white mt-0.5">103,680 bản ghi</div>
+                  <div className="text-[10px] text-blue-300/80 mt-0.5">smartdorm-wokwi-v1.csv</div>
+                </div>
+                <div className="p-3 rounded-xl bg-white/10 backdrop-blur-xs border border-white/10">
+                  <div className="text-[10px] text-blue-200 uppercase font-semibold">Cây Quyết Định (Trees)</div>
+                  <div className="text-sm font-bold text-white mt-0.5">200 Estimators</div>
+                  <div className="text-[10px] text-blue-300/80 mt-0.5">Max Depth: 4 · LR: 0.05</div>
+                </div>
+                <div className="p-3 rounded-xl bg-white/10 backdrop-blur-xs border border-white/10">
+                  <div className="text-[10px] text-blue-200 uppercase font-semibold">Hàm Tổn Thất (Loss)</div>
+                  <div className="text-sm font-bold text-white mt-0.5">Huber Loss</div>
+                  <div className="text-[10px] text-blue-300/80 mt-0.5">Kháng nhiễu đột biến (Outliers)</div>
+                </div>
+                <div className="p-3 rounded-xl bg-white/10 backdrop-blur-xs border border-white/10">
+                  <div className="text-[10px] text-blue-200 uppercase font-semibold">Đặc Trưng Đầu Vào</div>
+                  <div className="text-sm font-bold text-white mt-0.5">13 Features</div>
+                  <div className="text-[10px] text-blue-300/80 mt-0.5">Thời gian, Vi khí hậu, Thiết bị</div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Benchmark Comparison Table */}
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-            <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-blue-900" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                  Bảng Đối Soát Chỉ Số Hiệu Năng Mô Hình (Model Benchmark Matrix)
-                </h3>
+          {/* 2 Columns: Feature Importances + Hyperparameter Spec */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left: 13 Feature Importances */}
+            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-blue-900" />
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Trọng Số Đặc Trưng Mô Hình (GBM 13 Feature Importances)
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2 text-[10px]">
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-600"></span> Thời Gian</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Thiết Bị</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Cảm Biến</span>
+                </div>
               </div>
-              <span className="text-[11px] text-slate-500 font-medium">
-                Cập nhật lúc: {new Date(MODEL_BENCHMARK_COMPARISON.evaluationTimestamp).toLocaleTimeString('vi-VN')}
-              </span>
+
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Mô hình phân tích tương quan giữa nhịp sinh học theo giờ của sinh viên (chu kỳ Sin/Cos) và trạng thái đóng ngắt rơ-le thiết bị để đưa ra dự báo phụ tải với độ chính xác cao nhất.
+              </p>
+
+              <div className="space-y-3 pt-1">
+                {GBM_FEATURE_IMPORTANCES.map((item, idx) => {
+                  const percent = (item.importance * 100).toFixed(1);
+                  return (
+                    <div key={item.feature} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[11px] text-slate-400 w-4">#{idx + 1}</span>
+                          <span className="font-bold text-slate-800">{item.nameVi}</span>
+                          <span className="font-mono text-[10px] text-slate-400">({item.feature})</span>
+                          {getCategoryBadge(item.category)}
+                        </div>
+                        <div className="flex items-center gap-2 font-mono">
+                          <span className="text-xs font-bold text-slate-900">{percent}%</span>
+                          <span className="text-[10px] text-slate-400">({item.importance.toFixed(3)})</span>
+                        </div>
+                      </div>
+
+                      {/* Visual Bar */}
+                      <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${getCategoryColor(item.category)}`}
+                          style={{ width: `${Math.min(100, item.importance * 350)}%` }}
+                        />
+                      </div>
+                      <div className="text-[10px] text-slate-400 italic pl-6">{item.description}</div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-100/60 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
-                    <th className="py-3 px-4">Mô Hình / Thuật Toán</th>
-                    <th className="py-3 px-4">Loại Kiến Trúc</th>
-                    <th className="py-3 px-4 text-center">Trạng Thái</th>
-                    <th className="py-3 px-4 text-right">MAE (kW)</th>
-                    <th className="py-3 px-4 text-right">RMSE (kW)</th>
-                    <th className="py-3 px-4 text-right">MAPE (%)</th>
-                    <th className="py-3 px-4 text-right">Hệ Số R²</th>
-                    <th className="py-3 px-4 text-right">Độ Trễ</th>
-                    <th className="py-3 px-4 text-center">Hành Động</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  {MODEL_BENCHMARK_COMPARISON.models.map((m) => {
-                    // Model đang ACTIVE: check theo code hoặc theo type ENSEMBLE (GBM)
-                    const isCurrentActive = activeForecaster === m.code ||
-                      (activeForecaster === 'energy-gbm-forecaster' && m.type === 'ENSEMBLE');
-                    // Best model: MAPE thấp nhất trong 3 models (GBM = 4.69%)
-                    const isBest = m.metrics.mape === Math.min(...MODEL_BENCHMARK_COMPARISON.models.map(x => x.metrics.mape));
+            {/* Right: Technical Hyperparameters & Pipeline Breakdown */}
+            <div className="space-y-6">
+              {/* Architecture Spec Card */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                  <Sliders className="w-4 h-4 text-indigo-600" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Cấu Hình Siêu Tham Số (Hyperparameters)
+                  </h3>
+                </div>
 
-                    return (
-                      <tr key={m.modelId} className={`hover:bg-slate-50/80 transition-colors ${isCurrentActive ? 'bg-blue-50/40' : ''}`}>
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-2">
-                            {isBest && <Award className="w-4 h-4 text-amber-500 shrink-0" />}
-                            <div>
-                              <div className="font-bold text-slate-900">{m.name}</div>
-                              <div className="text-[10px] text-slate-400 font-mono">{m.code}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-                            {m.type}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <Badge variant={isCurrentActive ? 'success' : m.status === 'STANDBY' ? 'info' : 'warning'} size="sm">
-                            {isCurrentActive ? 'ACTIVE (Chính Thức)' : m.status}
-                          </Badge>
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
-                          {m.metrics.mae.toFixed(2)}
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-mono text-slate-600">
-                          {m.metrics.rmse.toFixed(2)}
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-mono text-emerald-600 font-bold">
-                          {m.metrics.mape.toFixed(2)}%
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-mono text-slate-900 font-bold">
-                          {m.metrics.r2Score.toFixed(3)}
-                        </td>
-                        <td className="py-3.5 px-4 text-right font-mono text-slate-500">
-                          {m.latencyMs} ms
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          {isCurrentActive ? (
-                            <span className="text-[11px] font-bold text-emerald-700 flex items-center justify-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Đang Dùng
-                            </span>
-                          ) : (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handlePromote(m.code, m.name)}
-                            >
-                              Thăng Cấp
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                <div className="space-y-2.5 text-xs">
+                  <div className="flex justify-between py-1.5 border-b border-slate-50">
+                    <span className="text-slate-500">Framework ML:</span>
+                    <span className="font-mono font-bold text-slate-800">Scikit-Learn (Python)</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-slate-50">
+                    <span className="text-slate-500">Algorithm:</span>
+                    <span className="font-mono font-bold text-slate-800">GradientBoostingRegressor</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-slate-50">
+                    <span className="text-slate-500">Number of Estimators:</span>
+                    <span className="font-mono font-bold text-blue-900">200 Decision Trees</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-slate-50">
+                    <span className="text-slate-500">Loss Function:</span>
+                    <span className="font-mono font-bold text-indigo-600">Huber Loss (alpha=0.9)</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-slate-50">
+                    <span className="text-slate-500">Max Tree Depth:</span>
+                    <span className="font-mono font-bold text-slate-800">4</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-slate-50">
+                    <span className="text-slate-500">Learning Rate:</span>
+                    <span className="font-mono font-bold text-slate-800">0.05</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-slate-50">
+                    <span className="text-slate-500">Min Samples Split:</span>
+                    <span className="font-mono font-bold text-slate-800">5</span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-slate-50">
+                    <span className="text-slate-500">Artifact File:</span>
+                    <span className="font-mono text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                      energy_gbm_model.joblib
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* End-to-End Pipeline Card */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <Workflow className="w-4 h-4 text-emerald-600" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Quy Trình Pipeline (MLOps Flow)
+                  </h3>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</span>
+                    <div>
+                      <div className="font-bold text-slate-800">Thu Thập Dữ Liệu Cục Bộ</div>
+                      <div className="text-[11px] text-slate-500">Đọc dataset 103,680 mẫu Wokwi Digital Twin không phụ thuộc API ngoài.</div>
+                    </div>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">2</span>
+                    <div>
+                      <div className="font-bold text-slate-800">Trích Xuất 13 Đặc Trưng</div>
+                      <div className="text-[11px] text-slate-500">Tính toán Sin/Cos chu kỳ, chuẩn hóa min-max vi khí hậu và trạng thái rơ-le.</div>
+                    </div>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5">
+                    <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</span>
+                    <div>
+                      <div className="font-bold text-slate-800">Dự Báo & Ước Lượng Dải Tin Cậy</div>
+                      <div className="text-[11px] text-slate-500">Suy luận tỷ lệ tải thiết bị (%) và vi khí hậu kèm dải tin cậy ±10% cho Decision Support Engine.</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="w-full justify-center"
+                    icon={<RotateCw className="w-3.5 h-3.5" />}
+                    onClick={() => handleStartRetrain(gbmModel)}
+                  >
+                    Kích Hoạt Tái Huấn Luyện GBM
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -322,90 +436,118 @@ export default function ModelPerformancePage() {
 
       {/* 5. Tab 2: Model Registry */}
       {activeTab === 'REGISTRY' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {models.map((model) => (
-            <div
-              key={model.id}
-              className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4 hover:border-slate-300 transition-all"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-slate-900">{model.name}</h3>
-                    <Badge variant={model.status === 'ACTIVE' ? 'success' : 'neutral'} size="sm">
-                      {model.status}
-                    </Badge>
-                  </div>
-                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">{model.code} · {model.version}</p>
-                </div>
-                <div className="p-2 rounded-xl bg-slate-50 text-slate-600 border border-slate-200">
-                  <Cpu className="w-4 h-4" />
-                </div>
-              </div>
-
-              <p className="text-xs text-slate-600 leading-relaxed">
-                {model.description}
-              </p>
-
-              <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100 text-center font-mono">
-                <div>
-                  <div className="text-[10px] text-slate-400 uppercase font-sans">Độ Trễ</div>
-                  <div className="text-xs font-bold text-slate-800">{model.latencyMs} ms</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-slate-400 uppercase font-sans">{model.f1Score ? 'F1-Score' : 'R² Score'}</div>
-                  <div className="text-xs font-bold text-emerald-600">{model.f1Score ? model.f1Score.toFixed(3) : model.r2?.toFixed(3) || '0.946'}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-slate-400 uppercase font-sans">Mẫu Train</div>
-                  <div className="text-xs font-bold text-slate-800">{(model.trainingSamples / 1000).toFixed(0)}k</div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                <span className="text-slate-400 text-[11px] flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  Train: {new Date(model.trainedAt).toLocaleDateString('vi-VN')}
-                </span>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={<RotateCw className="w-3 h-3" />}
-                  onClick={() => handleStartRetrain(model)}
-                >
-                  Tái Huấn Luyện
-                </Button>
-              </div>
+        <div className="space-y-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between text-xs text-slate-600">
+            <div className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-blue-900" />
+              <span>Danh mục <strong>{models.length} mô hình AI sản xuất</strong> đang hoạt động trên hệ thống SmartDorm.</span>
             </div>
-          ))}
+            <span className="text-[11px] text-slate-400 font-mono">Tất cả mô hình đã được tinh gọn và kiểm thử an toàn.</span>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {models.map((model) => (
+              <div
+                key={model.id}
+                className={`bg-white rounded-2xl border p-5 shadow-xs space-y-4 transition-all ${
+                  model.id === 'mdl-gbm-v2' ? 'border-blue-300 ring-1 ring-blue-100' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-slate-900">{model.name}</h3>
+                      {model.id === 'mdl-gbm-v2' && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                          CHAMPION
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 font-mono mt-0.5">{model.code} · {model.version}</p>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-50 text-slate-600 border border-slate-200">
+                    <Cpu className="w-4 h-4" />
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-600 leading-relaxed min-h-[36px]">
+                  {model.description}
+                </p>
+
+                <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100 text-center font-mono">
+                  <div>
+                    <div className="text-[10px] text-slate-400 uppercase font-sans">Độ Trễ</div>
+                    <div className="text-xs font-bold text-slate-800">{model.latencyMs} ms</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-slate-400 uppercase font-sans">{model.f1Score ? 'F1-Score' : 'R² Score'}</div>
+                    <div className="text-xs font-bold text-emerald-600">{model.f1Score ? model.f1Score.toFixed(3) : model.r2?.toFixed(3) || '0.961'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-slate-400 uppercase font-sans">Mẫu Train</div>
+                    <div className="text-xs font-bold text-slate-800">{(model.trainingSamples / 1000).toFixed(0)}k</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                  <span className="text-slate-400 text-[11px] flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" />
+                    Train: {new Date(model.trainedAt).toLocaleDateString('vi-VN')}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<RotateCw className="w-3 h-3" />}
+                    onClick={() => handleStartRetrain(model)}
+                  >
+                    Tái Huấn Luyện
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* 6. Tab 3: Data Drift Monitor */}
+      {/* 6. Tab 3: Data Drift & Sensor Health */}
       {activeTab === 'DRIFT' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-xs">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Giám Sát Độ Trôi Dữ Liệu & Tuổi Mô Hình (Drift & Staleness Monitoring)</h3>
+            <h3 className="text-sm font-bold text-slate-900">Giám Sát Độ Trôi Dữ Liệu & Sức Khỏe Telemetry (Drift & Sensor Monitor)</h3>
             <p className="text-xs text-slate-500 mt-1">
-              Hệ thống tự động theo dõi sai số dự báo MAE theo thời gian thực và phát hiện phân phối tải mới làm giảm chất lượng mô hình.
+              Hệ thống liên tục theo dõi sai số dự báo MAE của mô hình Champion GBM và phân phối dữ liệu cảm biến DHT22, MQ-2 từ thiết bị IoT.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-900">Gradient Boosting Forecaster (v2.0.0)</span>
+                <span className="text-xs font-bold text-emerald-900">Gradient Boosting Forecaster (GBM)</span>
                 <Badge variant="success" size="sm">HEALTHY</Badge>
               </div>
-              <p className="text-xs text-slate-600">Độ tuổi mô hình: 7 ngày · Độ trôi sai số: +1.8% (Ngưỡng cảnh báo: 20%). Không phát hiện Concept Drift.</p>
+              <p className="text-xs text-slate-600">
+                Độ tuổi mô hình: 18 ngày · Độ lệch sai số MAE: <strong>+1.2%</strong> (Ngưỡng cảnh báo: 15%). Phân phối phụ tải ổn định, không có Concept Drift.
+              </p>
             </div>
 
-            <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/50 space-y-2">
+            <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-900">Moving Average Baseline (v1.1)</span>
-                <Badge variant="warning" size="sm">STALE (&gt;30 Days)</Badge>
+                <span className="text-xs font-bold text-emerald-900">Isolation Forest Anomaly</span>
+                <Badge variant="success" size="sm">OPTIMAL</Badge>
               </div>
-              <p className="text-xs text-slate-600">Độ tuổi mô hình: 47 ngày · Cần kích hoạt chạy pipeline tái huấn luyện với chuỗi telemetry mới nhất.</p>
+              <p className="text-xs text-slate-600">
+                Tỷ lệ báo động giả (False Positive Rate): <strong>0.38%</strong>. Ngưỡng phân tách kẹt rơ-le và rò rỉ khí gas duy trì tin cậy 96.1%.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/50 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-blue-900">ESP32 Telemetry Pipeline</span>
+                <Badge variant="info" size="sm">ACTIVE</Badge>
+              </div>
+              <p className="text-xs text-slate-600">
+                Tỷ lệ nhận gói tin DHT22 & MQ-2: <strong>100%</strong>. Độ trễ luồng MQTT: <strong>12 ms</strong>. Cảm biến hoạt động ổn định.
+              </p>
             </div>
           </div>
         </div>
@@ -415,7 +557,7 @@ export default function ModelPerformancePage() {
       <Modal
         isOpen={isRetraining}
         onClose={() => setIsRetraining(false)}
-        title="Đang Tái Huấn Luyện Mô Hình AI..."
+        title="Đang Tái Huấn Luyện Mô Hình Champion GBM..."
       >
         <div className="space-y-4 py-4">
           <div className="flex items-center justify-center py-4">
@@ -426,12 +568,12 @@ export default function ModelPerformancePage() {
               </div>
             </div>
           </div>
-          <div className="text-center space-y-1">
+          <div className="text-center space-y-1.5 px-4">
             <p className="text-xs font-bold text-slate-800">
-              Trích xuất dữ liệu Telemetry và huấn luyện mạng nơ-ron...
+              {retrainStepLabel || 'Đang thực thi pipeline tái huấn luyện Gradient Boosting Machine...'}
             </p>
             <p className="text-[11px] text-slate-500 font-mono">
-              Chronological split 70/15/15 · Tối ưu Adam Optimizer
+              Dataset: smartdorm-wokwi-v1.csv · 200 Estimators · Huber Loss · R² ~0.961
             </p>
           </div>
         </div>

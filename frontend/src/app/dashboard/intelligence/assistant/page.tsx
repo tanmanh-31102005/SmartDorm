@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { API_URL } from '@/lib/api';
 
 interface StructuredMessage {
   id: string;
@@ -39,12 +40,12 @@ interface StructuredMessage {
 }
 
 const ADMIN_QUICK_ACTIONS = [
-  { icon: Zap, label: 'Dự Báo Phụ Tải', text: 'Phân tích dự báo đỉnh phụ tải điện tối nay và đề xuất giải pháp tiết kiệm' },
+  { icon: Zap, label: 'Dự Báo Tải Thiết Bị', text: 'Phân tích dự báo tỷ lệ bật rơ-le và vi khí hậu tối nay để tối ưu bật tắt' },
   { icon: AlertTriangle, label: 'Dị Thường Thiết Bị', text: 'Liệt kê các thiết bị đang có chỉ số bất thường và nguyên nhân kỹ thuật' },
   { icon: Users, label: 'Hiện Diện Sinh Viên', text: 'Tình hình hiện diện sinh viên tại KTX hôm nay và khung giờ cao điểm' },
-  { icon: Cpu, label: 'Sức Khỏe AI / Model', text: 'Đánh giá độ chính xác MAE của mô hình GBM, LSTM và trạng thái Drift' },
+  { icon: Cpu, label: 'Sức Khỏe AI / Model', text: 'Đánh giá độ chính xác MAE của mô hình Champion GBM và trạng thái Drift' },
   { icon: Flame, label: 'An Toàn PCCC', text: 'Quy trình xử lý khẩn cấp khi cảm biến MQ-2 hoặc nhiệt độ DHT22 vượt ngưỡng' },
-  { icon: Lightbulb, label: 'Tối Ưu Vận Hành', text: 'Lập kế hoạch pre-cooling điều hòa và tắt thiết bị tại các phòng trống' },
+  { icon: Lightbulb, label: 'Tối Ưu Vận Hành', text: 'Kích hoạt quạt hút thông gió giải phóng khí Gas và tắt thiết bị tại các phòng trống' },
 ];
 
 export default function AiAssistantPage() {
@@ -55,9 +56,9 @@ export default function AiAssistantPage() {
       text: `Xin chào! Tôi là **SmartDorm AI Copilot**, trợ lý trí tuệ nhân tạo có căn cứ dữ liệu thực tế (Data Grounding).
 
 Tôi có thể hỗ trợ Ban Quản Lý:
-- ⚡ **Dự báo phụ tải**: Phân tích đường cong tiêu thụ điện 24h & 7 ngày (Mô hình LSTM MAE 0.38 kW).
-- ⚠️ **Chẩn đoán thiết bị**: Tìm nguyên nhân kỹ thuật của các cảnh báo rơ-le, điều hòa, quạt và đèn LED.
-- 👥 **Dự đoán lưu trú**: Thống kê tỷ lệ có mặt sinh viên theo tầng và phòng (Random Forest Classifier).
+- ⚡ **Dự báo tải thiết bị & vi khí hậu**: Phân tích tỷ lệ hoạt động rơ-le và chu kỳ DHT22 24h & 7 ngày (Mô hình Champion GBM MAE 4.28%, R² 0.961).
+- ⚠️ **Chẩn đoán thiết bị**: Tìm nguyên nhân kỹ thuật của các cảnh báo kẹt rơ-le, quạt thông gió, khóa từ và còi báo động.
+- 👥 **Dự đoán lưu trú**: Thống kê tỷ lệ có mặt sinh viên theo tầng và phòng (XGBoost Classifier kết hợp quẹt thẻ RFID).
 - 🛡️ **An toàn & PCCC**: Giám sát cảm biến MQ-2 & DHT22 với nguyên tắc an toàn ưu tiên tuyệt đối.
 
 Hãy chọn một chủ đề gợi ý bên dưới hoặc gõ câu hỏi của bạn để bắt đầu!`,
@@ -68,7 +69,7 @@ Hãy chọn một chủ đề gợi ý bên dưới hoặc gõ câu hỏi của 
         'Hệ thống đang giám sát 248 phòng sinh viên & 744 cảm biến vi khí hậu',
         'Cơ chế an toàn PCCC & cứu nạn luôn có quyền ưu tiên cao nhất so với AI',
       ],
-      dataSources: ['LSTM_NEURAL_NETWORK', 'WOKWI_DHT22_MQ2_STREAM', 'POSTGRES_DATABASE'],
+      dataSources: ['GBM_CHAMPION_FORECASTER', 'WOKWI_DHT22_MQ2_STREAM', 'POSTGRES_DATABASE'],
     },
   ]);
   const [inputMessage, setInputMessage] = useState('');
@@ -95,7 +96,7 @@ Hãy chọn một chủ đề gợi ý bên dưới hoặc gõ câu hỏi của 
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:3001/api/intelligence/copilot/chat', {
+      const res = await fetch(`${API_URL}/intelligence/copilot/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -129,7 +130,7 @@ Hãy chọn một chủ đề gợi ý bên dưới hoặc gõ câu hỏi của 
       const fallbackMsg: StructuredMessage = {
         id: `ai-${Date.now()}`,
         sender: 'ai',
-        text: `Hệ thống ghi nhận: Phụ tải điện 248 phòng KTX đang ở mức 48.6 kW an toàn. Dự báo phụ tải đỉnh tối nay 98.4 kW lúc 19:30. *(Kết nối fallback cục bộ)*.`,
+        text: `Hệ thống ghi nhận: Tải hoạt động rơ-le 248 phòng KTX đang ở mức an toàn (bật 42/992 rơ-le). Cảm biến DHT22 & MQ-2 ổn định. *(Kết nối fallback cục bộ)*.`,
         timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
         confidence: 0.85,
         dataSourceType: 'WOKWI_SIMULATION',
@@ -389,7 +390,7 @@ Hãy chọn một chủ đề gợi ý bên dưới hoặc gõ câu hỏi của 
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Hỏi Gemini Copilot về KTX (ví dụ: 'Phân tích dự báo đỉnh phụ tải điện tối nay và đề xuất giải pháp tiết kiệm')..."
+              placeholder="Hỏi Gemini Copilot về KTX (ví dụ: 'Phân tích dự báo tải thiết bị rơ-le và cảnh báo MQ-2 hôm nay')..."
               disabled={isLoading}
               className="flex-1 bg-slate-50 border border-slate-200 text-slate-800 placeholder-slate-400 text-xs rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all disabled:opacity-50"
             />

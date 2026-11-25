@@ -6,8 +6,7 @@ High-performance Python FastAPI Microservice providing Machine Learning inferenc
 - **Framework**: FastAPI (Asynchronous REST API)
 - **Port**: 8000
 - **Primary Data Store**: InfluxDB 2.7 (Port 8086)
-- **Fallback Data Store**: SQLite (`backend/prisma/dev.db`)
-- **Forecasting**: Prophet with 24-hour horizon & Baseline (Diurnal cyclic fallback)
+- **Forecasting**: Gradient Boosting Machine (GBM Champion Forecaster - R²=0.96, <10ms inference)
 - **Device Anomaly**: scikit-learn `IsolationForest`
 - **Occupancy Prediction**: Multi-signal Proxy Classifier (RFID events + wattage + time-of-day)
 

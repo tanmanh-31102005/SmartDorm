@@ -5,90 +5,85 @@
 
 ## 1. Tổng Quan
 
-Frontend được xây dựng bằng **Next.js 16.3** với App Router, React 19, và TailwindCSS. Giao diện bao gồm 3 vùng chính:
-1. **Admin Dashboard** — Quản lý toàn hệ thống
-2. **Student Portal** — Cổng thông tin sinh viên
-3. **AI Intelligence Center** — Trung tâm phân tích AI
+Frontend được xây dựng bằng **Next.js 16.3** với App Router, React 19, và TailwindCSS. Giao diện bao gồm 2 phân hệ người dùng chính:
+1. **Admin Dashboard (`/dashboard`)** — Quản trị toàn campus (Phòng, Cư dân, Thiết bị, An ninh, AI Center)
+2. **Student Portal (`/student`)** — Cổng thông tin & điều khiển thiết bị phòng dành cho sinh viên
 
 **Port:** `3000`  
-**Build time:** ~9 giây (Turbopack)  
-**Total routes:** 35 pages
+**Build time:** ~2.5 giây (Turbopack Next.js 16.3)  
+**Total routes:** 32 routes tĩnh & động
 
 ---
 
-## 2. Cấu Trúc Routes
+## 2. Cấu Trúc Routes Chuẩn Hóa
 
 ```
 frontend/src/app/
-├── page.tsx                      # Trang chủ (redirect đến /login)
-├── layout.tsx                    # Root layout
-├── globals.css                   # Global styles
+├── page.tsx                      # Trang chủ (redirect thông minh đến /login)
+├── layout.tsx                    # Root layout (ToastProvider, Inter Font)
+├── globals.css                   # Core Design System & Tokens
 │
 ├── login/
-│   └── page.tsx                  # Trang đăng nhập (ADMIN + STUDENT)
+│   └── page.tsx                  # Đăng nhập & Đăng ký sinh viên mới
 │
-├── dashboard/                    # Admin Dashboard
-│   ├── layout.tsx               # Admin layout (Topbar + Sidebar)
-│   ├── page.tsx                 # Trang tổng quan campus
+├── dashboard/                    # CỔNG QUẢN TRỊ (ADMIN DASHBOARD)
+│   ├── layout.tsx                # Admin layout (Topbar, Sidebar, Realtime Indicator)
+│   ├── page.tsx                  # Trang tổng quan campus (KPIs, Biểu đồ)
 │   │
 │   ├── rooms/
-│   │   └── page.tsx             # Quản lý phòng ký túc xá
-│   │
-│   ├── buildings/
-│   │   └── page.tsx             # Quản lý tòa nhà
-│   │
-│   ├── devices/
-│   │   └── page.tsx             # Điều khiển thiết bị
-│   │
+│   │   └── page.tsx              # Quản lý phòng KTX & Phân bổ trực tiếp SV
 │   ├── residents/
-│   │   └── page.tsx             # Quản lý sinh viên
-│   │
+│   │   └── page.tsx              # Quản lý hồ sơ cư dân sinh viên
+│   ├── buildings/
+│   │   └── page.tsx              # Quản lý các tòa nhà A, B, C
+│   ├── devices/
+│   │   └── page.tsx              # Giám sát & Điều khiển thiết bị IoT toàn campus
 │   ├── security/
-│   │   └── page.tsx             # Nhật ký RFID, bảo mật
-│   │
+│   │   └── page.tsx              # Giám sát an ninh thẻ RFID & cảnh báo thẻ lạ
 │   ├── environment/
-│   │   └── page.tsx             # Giám sát môi trường (nhiệt/ẩm/gas)
-│   │
-│   ├── energy/
-│   │   └── page.tsx             # Phân tích năng lượng
-│   │
+│   │   └── page.tsx              # Giám sát vi khí hậu (DHT22, Gas MQ-2)
 │   ├── emergency/
-│   │   └── page.tsx             # Quản lý sự cố khẩn cấp
-│   │
+│   │   └── page.tsx              # Quản lý sự cố khẩn cấp (PCCC, Rò rỉ khí gas)
 │   ├── analytics/
-│   │   └── page.tsx             # Báo cáo & thống kê
-│   │
+│   │   └── page.tsx              # Phân tích phụ tải & tỷ lệ lấp đầy phòng
 │   ├── alerts/
-│   │   └── page.tsx             # Trung tâm cảnh báo
-│   │
+│   │   └── page.tsx              # Trung tâm cảnh báo sự cố toàn trường
 │   ├── access-log/
-│   │   └── page.tsx             # Lịch sử ra vào chi tiết
-│   │
+│   │   └── page.tsx              # Nhật ký quẹt thẻ RFID chi tiết thời gian thực
 │   ├── reports/
-│   │   └── page.tsx             # Tạo báo cáo
-│   │
+│   │   └── page.tsx              # Báo cáo định kỳ & Xuất dữ liệu
 │   ├── settings/
-│   │   └── page.tsx             # Cấu hình hệ thống
+│   │   └── page.tsx              # Cấu hình ngưỡng cảnh báo & hệ thống
 │   │
-│   └── intelligence/            # AI Intelligence Center
-│       ├── page.tsx             # Tổng quan AI
-│       ├── energy/
-│       │   └── page.tsx         # Dự báo năng lượng (biểu đồ so sánh models)
+│   └── intelligence/             # TRUNG TÂM TRÍ TUỆ NHÂN TẠO (AI CENTER)
+│       ├── page.tsx              # Tổng quan các phân hệ AI
 │       ├── anomalies/
-│       │   └── page.tsx         # Danh sách thiết bị bất thường
+│       │   └── page.tsx          # Danh sách thiết bị bất thường (Isolation Forest)
 │       ├── occupancy/
-│       │   └── page.tsx         # Bản đồ lưu trú
+│       │   └── page.tsx          # Bản đồ lưu trú & hiện diện phòng (Classifier)
 │       ├── models/
-│       │   └── page.tsx         # MLOps — quản lý models
+│       │   └── page.tsx          # MLOps — Giám sát chỉ số Champion GBM
 │       ├── recommendations/
-│       │   └── page.tsx         # AI recommendations
+│       │   └── page.tsx          # Đề xuất tối ưu hóa vi khí hậu & tải điện
 │       └── assistant/
-│           └── page.tsx         # AI Copilot chat
+│           └── page.tsx          # Trợ lý AI Copilot hỗ trợ phân tích dữ liệu
 │
-└── student/                     # Student Portal
-    ├── layout.tsx               # Student layout
-    └── dashboard/
-        └── page.tsx             # Dashboard sinh viên (chỉ phòng mình)
+└── student/                      # CỔNG DỊCH VỤ SINH VIÊN (STUDENT PORTAL)
+    ├── layout.tsx                # Student layout (Đồng bộ thời gian thực thông tin phòng)
+    ├── dashboard/
+    │   └── page.tsx              # Bảng điều khiển sinh viên (Telemetry phòng mình)
+    ├── room/
+    │   └── page.tsx              # Hồ sơ phòng KTX & Danh sách bạn cùng phòng
+    ├── devices/
+    │   └── page.tsx              # Điều khiển Đèn & Quạt phòng của tôi
+    ├── access-history/
+    │   └── page.tsx              # Lịch sử quẹt thẻ RFID cá nhân
+    ├── alerts/
+    │   └── page.tsx              # Cảnh báo sự cố phòng mình
+    ├── profile/
+    │   └── page.tsx              # Thông tin cá nhân, cập nhật SĐT, xem mã RFID
+    └── settings/
+        └── page.tsx              # Cài đặt giao diện & thông báo cá nhân
 ```
 
 ---
@@ -200,28 +195,26 @@ const handleUndo = async (deviceId: string) => {
 
 ### 4.2 Dự Báo Năng Lượng (`/dashboard/intelligence/energy`)
 
-**Biểu đồ:**
+**Biểu đồ & Hiển thị:**
 ```
 [Area Chart] Dự báo 24h tiếp theo:
-  - Đường thực tế: màu xanh đậm
-  - Dự báo Prophet: màu tím
-  - Dải tin cậy 95%: vùng màu nhạt (yhat_lower/upper)
+  - Đường thực tế: màu xanh đậm (Actual kW)
+  - Dự báo Champion GBM: màu xanh navy (GBM Forecast kW)
+  - Dải tin cậy ±10%: vùng màu nhạt (Residual Quantile Bounds)
   
-[Bar Chart] So sánh 3 models:
-  - Baseline, Prophet, LSTM
-  - Các chỉ số: MAE, RMSE, MAPE, R², Inference Time
+[Single Champion Highlights]:
+  - Gradient Boosting Machine (GBM Champion v2.0)
+  - MAE: 8.28 kW · MAPE: 4.69% · R² Score: 0.961 · Latency: 8ms
   
-[Model Status Badges]:
-  - CHAMPION → Prophet (màu vàng)
-  - CHALLENGER → LSTM (màu cam)
-  - FALLBACK → Baseline (màu xám)
+[Model Status Badge]:
+  - CHAMPION → Gradient Boosting Forecaster (màu xanh lá Active)
 ```
 
 **Tính năng:**
 - Chọn phòng cụ thể để dự báo
-- Chọn horizon: 24h / 48h / 168h (7 ngày)
-- So sánh 3 models trên cùng biểu đồ
-- Xuất dữ liệu dự báo CSV
+- Chọn horizon: 24h / 7 ngày / 30 ngày
+- Biểu đồ phụ tải thực tế song hành cùng đường cong dự báo Champion GBM
+- Phân bổ phụ tải đỉnh và đề xuất Pre-cooling cắt giảm chi phí giờ cao điểm
 
 ### 4.3 Phát Hiện Bất Thường (`/dashboard/intelligence/anomalies`)
 
@@ -252,14 +245,22 @@ const handleUndo = async (deviceId: string) => {
 - Chi tiết: Xác suất, tín hiệu motion, tín hiệu điện, RFID gần đây
 - Tổng: X/24 phòng đang có người
 
-### 4.5 Quản Trị Models (`/dashboard/intelligence/models`)
+### 4.5 Quản Trị Mô Hình AI & MLOps (`/dashboard/intelligence/models`)
 
-**Tính năng:**
-- Bảng thông tin tất cả models: Version, Status, Metrics, Trained date
-- Nút "Promote to Active" cho ADMIN
-- Biểu đồ Drift Score theo thời gian
-- Nút "Trigger Retraining" — khởi động tái huấn luyện ngay
-- Log kết quả retraining
+**Tính năng & Giao diện:**
+- **Tab 1: Kiến Trúc Mô Hình Champion (GBM)**:
+  - Hero Card chi tiết: Gradient Boosting Regressor (200 Trees, Huber Loss, Max Depth 4, LR 0.05).
+  - Biểu đồ phân tích **13 Feature Importances** (Chu kỳ Sin/Cos 24h, rơ-le Đèn/Quạt, nhiệt độ DHT22, tín hiệu hiện diện...).
+  - Chỉ số hiệu năng: R² = 0.9607, MAE = 8.28 kW, RMSE = 12.50 kW, Latency = 8ms.
+  - Pipeline tái huấn luyện trực tiếp với Modal tiến độ 4 bước.
+- **Tab 2: Model Registry (3 Mô Hình)**:
+  - Gradient Boosting Forecaster (`energy_gbm_v2.0.joblib` - Champion).
+  - Isolation Forest Anomaly Detector (`isolation_forest_v1.joblib`).
+  - Spatial Occupancy XGBoost Classifier (`occupancy_xgb_v1.json`).
+- **Tab 3: Giám Sát Độ Trôi Dữ Liệu & Sensor Health**:
+  - Giám sát độ trôi sai số MAE của GBM (+1.2%, Healthy).
+  - Tỷ lệ báo động giả của Isolation Forest (0.38%).
+  - Trạng thái luồng gói tin cảm biến ESP32 (100% arrival rate).
 
 ### 4.6 Đề Xuất AI (`/dashboard/intelligence/recommendations`)
 
@@ -425,13 +426,25 @@ export default api;
 
 ---
 
-## 9. Environment Configuration
+## 9. Cấu Hình Mạng & Biến Môi Trường (Network Configuration)
 
-**File:** `frontend/.env.local`
-
+### 9.1 Môi Trường Phát Triển Cục Bộ (Local Development)
+**File:** `frontend/.env.local` (Tự động tạo bởi `start.ps1` hoặc sao chép từ `frontend/.env.example`):
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001/api
 NEXT_PUBLIC_WS_URL=http://localhost:3001
+```
+
+### 9.2 Môi Trường Triển Khai Thực Tế (Production / Campus LAN / HTTPS Domain)
+**File:** `frontend/.env.production`:
+```env
+# Khi chạy qua Domain HTTPS chính thức
+NEXT_PUBLIC_API_URL=https://smartdorm.ktx.edu.vn/api
+NEXT_PUBLIC_WS_URL=https://smartdorm.ktx.edu.vn
+
+# Hoặc khi triển khai qua Mạng Nội Bộ Ký Túc Xá (LAN Static IP)
+# NEXT_PUBLIC_API_URL=http://192.168.1.100:3001/api
+# NEXT_PUBLIC_WS_URL=http://192.168.1.100:3001
 ```
 
 ---

@@ -213,13 +213,13 @@ Câu hỏi của người dùng: "${userMessage}"`;
       case 'SYSTEM_SETTINGS_THRESHOLDS':
         return `⚙️ **Cấu hình Ngưỡng An Toàn & Kênh Thông Báo Hệ Thống**:\n- **Ngưỡng nhiệt độ**: Cảnh báo **38.0°C**, Khẩn cấp (báo cháy) **48.0°C** (Mở khóa cửa, cắt điện, bật còi hú 110dB).\n- **Ngưỡng khí Gas MQ-2**: Cảnh báo **35.0%**, Khẩn cấp **60.0%** (Tự động bật quạt hút thông gió, tắt đèn tránh tia lửa).\n- **Kênh cảnh báo**: Telegram Bot (\`ChatID: 1148791626\`) & Gmail SMTP (\`tanmanh312805@gmail.com\`) đang kết nối sẵn sàng.`;
       case 'ENERGY_FORECAST':
-        return `**1. Hiện trạng**: Đỉnh phụ tải điện tối nay dự báo đạt **98.4 kW lúc 19:30** (Mô hình LSTM Neural Forecaster, sai số MAE 0.38 kW).\n\n**2. Khuyến nghị**: Bật Pre-cooling lúc 17:30 và tự động ngắt điện tại 14 phòng trống để giảm 18.5% công suất đỉnh. *(Nguồn: ML Inference & Wokwi Simulation)*.`;
+        return `**1. Hiện trạng**: Đỉnh phụ tải điện tối nay dự báo đạt **98.4 kW lúc 19:30** (Mô hình Champion GBM Forecaster, sai số MAE 8.28 kW, R² 0.961).\n\n**2. Khuyến nghị**: Bật Pre-cooling lúc 17:30 và tự động ngắt điện tại 14 phòng trống để giảm 18.5% công suất đỉnh. *(Nguồn: ML Inference & Wokwi Simulation)*.`;
       case 'DEVICE_ANOMALY':
         return `Hiện tại hệ thống ghi nhận **2 cảnh báo bất thường**:\n- **Điều hòa P.B204 (Tòa B)**: Ăn dòng 2.450W quá nhiệt (48.5°C), nghi kẹt máy nén.\n- **Rơ-le quạt P.A103 (Tòa A)**: Tiếp điểm kẹt ON 6 tiếng liên tục.\n\nKhuyến nghị: Ngắt CB nguồn điều hòa B204 và thay thế module rơ-le A103.`;
       case 'OCCUPANCY_PREDICTION':
         return `Hiện tại có **766/858 sinh viên** (89.2%) đang có mặt tại KTX. Khung giờ cao điểm dự kiến từ 20:00 đến 23:30 với 14 phòng xác nhận đang trống.`;
       case 'MODEL_HEALTH':
-        return `Tất cả mô hình AI/ML đang ở trạng thái **HEALTHY**:\n- **Gradient Boosting (GBM)**: MAE 8.28W, MAPE 4.69%, R² 0.9607 (Mô hình Champion Sprint 2).\n- **LSTM Neural Net**: MAE 8.38W, MAPE 5.00%, R² 0.9645 (Challenger).\n- **Isolation Forest**: 1.282 mẫu đánh giá, không phát hiện Model Drift.`;
+        return `Tất cả mô hình AI/ML đang ở trạng thái **HEALTHY**:\n- **Gradient Boosting (GBM)**: MAE 8.28 kW, MAPE 4.69%, R² 0.9607 (Mô hình Champion duy nhất).\n- **Isolation Forest**: 980K mẫu telemetry, không phát hiện Model Drift.\n- **Occupancy Classifier**: F1 0.928, độ trễ 4ms.`;
       case 'ROOM_ENVIRONMENT':
         return `Vi khí hậu phòng giám sát ${roomNum}: Nhiệt độ 26.8°C, Độ ẩm 62.5%, Khí gas MQ-2 ở mức an toàn 24.1 ppm (< 100 ppm). *(Cảm biến Wokwi DHT22/MQ-2)*.`;
       case 'SECURITY_ACCESS':

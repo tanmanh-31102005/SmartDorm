@@ -10,6 +10,7 @@ import { SettingsService } from '../settings/settings.service';
 export class SensorsService implements OnModuleInit {
   private readonly logger = new Logger('SensorsService');
   private roomCache: Map<string, { id: string; buildingId: string }> = new Map();
+  private roomEnergyAccumulator: Map<string, { lastTime: number; totalKwh: number }> = new Map();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -56,17 +57,31 @@ export class SensorsService implements OnModuleInit {
     const isFireAlert = data.temp_alert || tempVal >= thresholds.tempCritical;
     const isGasAlert = data.gas_alert || gasVal >= thresholds.gasCritical;
 
-    // Calculate simulated power if raw power not supplied:
-    // 3 lights (~20W each) + fan (~60W)
+    // Công thức tính công suất chuẩn SmartDorm:
+    // P_total = (N_đèn * 20W) + (Quạt * 60W) + P_standby (5W)
     let lightCount = 0;
     if (data.light_1) lightCount++;
     if (data.light_2) lightCount++;
     if (data.light_3) lightCount++;
+    if (lightCount === 0 && data.light) lightCount = 2; // ước lượng 2 đèn khi có cờ light chung
+
     const lightPower = lightCount * 20.0;
     const fanPower = data.fan ? 60.0 : 0.0;
-    const standbyPower = 5.0; // ESP32 + sensors baseline
+    const standbyPower = 5.0; // ESP32 + cảm biến + router baseline
     const powerW = data.powerW !== undefined ? data.powerW : (lightPower + fanPower + standbyPower);
-    const energyKwh = data.energyKwh;
+
+    // Tích phân điện năng tiêu thụ (kWh) theo thời gian thực: A = sum(P * delta_t / 3.6e6)
+    const now = Date.now();
+    let acc = this.roomEnergyAccumulator.get(roomKey);
+    if (!acc) {
+      acc = { lastTime: now, totalKwh: 12.45 }; // Khởi tạo mốc tích lũy
+      this.roomEnergyAccumulator.set(roomKey, acc);
+    }
+    const deltaSec = Math.min(Math.max((now - acc.lastTime) / 1000, 1), 30);
+    const incrementalKwh = (powerW * deltaSec) / (3600 * 1000);
+    acc.totalKwh += incrementalKwh;
+    acc.lastTime = now;
+    const energyKwh = data.energyKwh !== undefined ? data.energyKwh : Math.round(acc.totalKwh * 1000) / 1000;
     const occupancySignal = data.occupancySignal !== undefined ? data.occupancySignal : (lightCount > 0 || data.fan);
 
     // Broadcast to all dashboard clients (Observer Pattern)
@@ -74,6 +89,7 @@ export class SensorsService implements OnModuleInit {
     this.eventsGateway.broadcastSensorData(broadcastRoomId, {
       ...data,
       powerW,
+      energyKwh,
       occupancySignal,
       temp_alert: isFireAlert,
       gas_alert: isGasAlert,

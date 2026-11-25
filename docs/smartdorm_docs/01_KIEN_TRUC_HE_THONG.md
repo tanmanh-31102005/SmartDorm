@@ -5,49 +5,61 @@
 
 ## 1. Tổng Quan Kiến Trúc
 
-SmartDorm áp dụng kiến trúc **Microservices** kết hợp với **Event-Driven Architecture**. Hệ thống được chia thành 5 tầng rõ ràng:
+SmartDorm áp dụng **Kiến trúc Phân tầng IoT Chuẩn Quốc Tế (5-Tier Enterprise IoT Architecture)** kết hợp với **Event-Driven Architecture**. Hệ thống được chuẩn hóa thành 5 tầng rõ ràng với luồng dữ liệu 2 chiều (Telemetry Upstream & Actuator Downstream):
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                    TẦNG PRESENTATION                             │
-│          Next.js 16.3 — Admin Dashboard & Student Portal         │
-│                    Port 3000 | React 19                          │
-└──────────────────────────────────┬───────────────────────────────┘
-                                   │ REST / WebSocket (Socket.IO)
-┌──────────────────────────────────▼───────────────────────────────┐
-│                      TẦNG APPLICATION                            │
-│              NestJS 10.x — Backend API Server                    │
-│                    Port 3001 | TypeScript                        │
-│   ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌──────────────────────┐  │
-│   │ REST API│ │WebSocket│ │  MQTT   │ │  Intelligence/ML-    │  │
-│   │ /api/*  │ │ Gateway │ │ Service │ │  Client Integration  │  │
-│   └─────────┘ └─────────┘ └─────────┘ └──────────────────────┘  │
-└────────┬─────────────────────────────────┬───────────────────────┘
-         │                                 │
-┌────────▼────────┐            ┌───────────▼───────────────────────┐
-│  TẦNG AI/ML     │            │        TẦNG DỮ LIỆU              │
-│  FastAPI Python │            │  SQLite / PostgreSQL              │
-│  Port 8000      │            │  InfluxDB 2.7 (TSDB)             │
-│                 │            │  Port 5432 / 8086                │
-│  - Prophet      │            └───────────────────────────────────┘
-│  - LSTM Neural  │
-│  - Isolation    │
-│    Forest       │
-│  - Occupancy    │
-└─────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│                    TẦNG IoT / MESSAGING                         │
-│                  MQTT Broker (Mosquitto 2.0)                    │
-│                   Port 1883 (MQTT) / 9001 (WS)                  │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-┌──────────────────────────────▼──────────────────────────────────┐
-│                   TẦNG PHẦN CỨNG / EDGE                         │
-│               ESP32 NodeMCU-32S / Wokwi Simulator               │
-│     DHT22 · MQ-2 · RFID BUTTONS · LEDs · Buzzer                │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    TẦNG 5: TRÌNH DIỄN & NGƯỜI DÙNG (PRESENTATION)           │
+│     Next.js 16 (React 19) — Admin Control Center & Student Resident Portal  │
+│  - Giám sát An toàn (Gas/Temp)   - Nhật ký quẹt thẻ RFID   - Điều khiển Đèn/Quạt│
+└──────────────────────────────────────▲──────────────────────────────────────┘
+                                       │ REST API (HTTPS) / WebSocket (Socket.IO)
+┌──────────────────────────────────────▼──────────────────────────────────────┐
+│                    TẦNG 4: XỬ LÝ NGHIỆP VỤ & AI (APPLICATION & INTELLIGENCE)│
+│  ┌─────────────────────────────────────┐  ┌──────────────────────────────┐  │
+│  │   NESTJS 10.x — BACKEND CORE        │  │  FASTAPI — AI SERVICE        │  │
+│  │  - REST Controllers & Auth (JWT)    │  │  - Champion Model: GBM       │  │
+│  │  - Strategy Pattern (Xử lý sự cố)   │◄─┤    (Gradient Boosting        │  │
+│  │  - Command Pattern (Điều khiển relay│  │     Model - Vi khí hậu &     │  │
+│  │  - WebSocket Gateway (Realtime push)│  │     Khả năng hiện diện phòng)│  │
+│  │  - MQTT Ingestion Service           │  │  - Feature Pipeline siêu nhẹ │  │
+│  └──────────────────┬──────────────────┘  └──────────────────────────────┘  │
+└─────────────────────┼───────────────────────────────────────────────────────┘
+                      │ ORM (Prisma) / Query Interface
+┌─────────────────────▼───────────────────────────────────────────────────────┐
+│                    TẦNG 3: DỮ LIỆU & LƯU TRỮ (PERSISTENCE & DATA LAYER)     │
+│  - Relational Database (SQLite / PostgreSQL): User, Room, RFID Access Logs  │
+│  - Time-Series Telemetry Data: Lịch sử Nhiệt độ, Độ ẩm, Khí Gas MQ-2        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                       ▲
+                                       │ MQTT Ingestion / Pub-Sub
+┌──────────────────────────────────────┴──────────────────────────────────────┐
+│                    TẦNG 2: TRUYỀN THÔNG & MẠNG (COMMUNICATION / TRANSPORT)  │
+│  - Message Broker: Eclipse Mosquitto 2.0 (MQTT Port 1883 / WS 9001)        │
+│  - Mạng truyền thông: WiFi 802.11 b/g/n (2.4GHz WPA2)                       │
+│  - Topic Taxonomy: dormitory/{building}/{floor}/{room}/[sensor|status|cmd]  │
+└──────────────────────────────────────▲──────────────────────────────────────┘
+                                       │ Telemetry Data / Actuator Commands
+┌──────────────────────────────────────▼──────────────────────────────────────┐
+│                    TẦNG 1: THIẾT BỊ BIÊN & CẢM BIẾN (PERCEPTION / EDGE)     │
+│  - Kiến trúc phần cứng: 2 Khối Độc Lập chuẩn công nghiệp (Hàn cố định / Hybrid)│
+│    + Khối 1: Đế Ra Chân ESP32 30 chân (Expansion Shield) cắm ESP32 DevKit V1│
+│    + Khối 2: Bo Phíp FR-4 5x7cm (Hàn) HOẶC Breadboard Prototyping (0% hàn)  │
+│  - Cảm biến đầu vào: DHT22 (Nhiệt/Ẩm - GPIO 4), MQ-2 (Gas/Khói - GPIO 34 ADC│
+│  - Kiểm soát truy cập: Module RFID RC522 (13.56MHz SPI) + Thẻ từ sinh viên  │
+│  - Điều khiển cơ: 5 nút nhấn (Đèn GPIO 32, Quạt GPIO 33, Thẻ SV1/SV2/Lạ)   │
+│  - Cơ cấu chấp hành & Cảnh báo: Module Rơ-le 4 kênh (Đèn GPIO 25, Quạt      │
+│    GPIO 14, Khóa cửa GPIO 12, Báo động GPIO 13), Active Buzzer (GPIO 15)    │
+│  - *Nguyên lý năng lượng thời gian thực (Zero Hardware PZEM/CT cost):        │
+│    P_total = (N_đèn x 20W) + (Quạt x 60W) + 5W Standby; tích phân kWh tự động│
+│  - Bộ nhớ cục bộ: NVS Preferences (Offline Cache) & SPIFFS (Offline Queue)  │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Luồng dữ liệu chuẩn hóa trong hệ thống:**
+1. **Dữ liệu cảm biến đẩy lên (Telemetry Upstream):** Cảm biến $\rightarrow$ ESP32 $\rightarrow$ MQTT (Port 1883) $\rightarrow$ NestJS MQTT Service $\rightarrow$ Prisma DB / TSDB $\rightarrow$ WebSocket Gateway $\rightarrow$ Next.js Dashboard.
+2. **Lệnh điều khiển gửi xuống (Command Downstream):** Người dùng thao tác UI $\rightarrow$ REST API / WebSocket $\rightarrow$ NestJS Command Handler $\rightarrow$ MQTT Publish $\rightarrow$ ESP32 nhận lệnh $\rightarrow$ Kích Relay đóng ngắt thiết bị.
+3. **Phân tích thông minh (Intelligence Pipeline):** Sensor & Event Data $\rightarrow$ FastAPI GBM Model $\rightarrow$ Dự báo Vi khí hậu & Hiện diện phòng $\rightarrow$ Gửi khuyến nghị tự động lên Web.
 
 ---
 
@@ -60,14 +72,14 @@ Tất cả các trình duyệt Frontend đóng vai trò **Observers** (người 
 
 ```
 EventsGateway (Subject)
-    ├── sensor:update    → Dashboard cập nhật biểu đồ nhiệt độ/độ ẩm
+    ├── sensor:update    → Dashboard cập nhật biểu đồ nhiệt độ/độ ẩm/gas
     ├── access:log       → Dashboard hiển thị quẹt thẻ realtime
     ├── emergency:alert  → Dashboard bật cảnh báo đỏ khẩn cấp
     ├── device:status    → Dashboard cập nhật trạng thái đèn/quạt/cửa
-    ├── ai:forecast-updated     → Dashboard cập nhật biểu đồ dự báo
-    ├── ai:anomaly-detected     → Dashboard hiển thị thiết bị bất thường
-    └── ai:recommendation-created → Dashboard gợi ý tiết kiệm điện
+    ├── ai:forecast-updated     → Dashboard cập nhật biểu đồ dự báo GBM
+    └── ai:recommendation-created → Dashboard gợi ý tối ưu vi khí hậu & an toàn
 ```
+
 
 **Cách hoạt động:**
 1. ESP32 gửi dữ liệu qua MQTT
@@ -349,3 +361,54 @@ Nếu FastAPI ML Service không khả dụng:
   → Emergency alerts vẫn hoạt động bình thường (Rule Engine)
   → Dữ liệu cảm biến vẫn lưu đầy đủ
 ```
+
+---
+
+## 7. Kiến Trúc Triển Khai Cloud VPS Sản Xuất (Production Cloud VPS Architecture)
+
+Hệ thống SmartDorm được đóng gói theo kiến trúc vi dịch vụ container hóa (Docker Compose), sẵn sàng triển khai trên hạ tầng máy chủ ảo Cloud VPS (Ubuntu 22.04 / 24.04 LTS):
+
+```
+                                    ┌────────────────────────────────────────────────────────┐
+                                    │                     INTERNET                           │
+                                    └──────────────┬──────────────────────────┬──────────────┘
+                                                   │ HTTPS (Port 443)         │ MQTT (Port 1883)
+                                                   ▼                          ▼
+┌────────────────────────────────────────────────────────────────────────────────────────────┐
+│ MÁY CHỦ CLOUD VPS (Cấu hình chuẩn: 2 vCPU, 4GB RAM, 50GB NVMe SSD, 1 Static IPv4)         │
+│                                                                                            │
+│  ┌──────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ NGINX REVERSE PROXY & SSL CERTBOT (Let's Encrypt TLS 1.3)                            │  │
+│  │   - smartdorm.domain / IP ➔ Port 3000 (Next.js Frontend SSR)                         │  │
+│  │   - smartdorm.domain/api ➔ Port 3001 (NestJS Backend REST API)                       │  │
+│  │   - smartdorm.domain/socket.io ➔ Port 3001 (WebSocket Realtime Stream)               │  │
+│  └──────────────────────┬───────────────────────────────┬───────────────────────────────┘  │
+│                         │                               │                                  │
+│  ┌──────────────────────▼───────┐  ┌────────────────────▼────────┐  ┌────────────────────┐ │
+│  │ smartdorm-frontend           │  │ smartdorm-backend           │  │ smartdorm-mqtt     │ │
+│  │ Next.js 16 (Port 3000)       │  │ NestJS 11 (Port 3001)       │  │ Mosquitto 2.0      │ │
+│  │ RAM: ~250MB - 350MB          │  │ RAM: ~280MB - 400MB         │  │ (Port 1883 / 9001) │ │
+│  └──────────────────────────────┘  └──────┬──────────────────────┘  │ RAM: ~30MB - 50MB  │ │
+│                                           │                         └─────────▲──────────┘ │
+│                                    ┌──────┴───────┬──────────────┐            │            │
+│                                    ▼              ▼              ▼            │ (ESP32 WiFi)
+│  ┌────────────────────────┐  ┌─────────────┐┌─────────────┐┌──────────────┐   │            │
+│  │ smartdorm-ml-service   │  │ InfluxDB 2.7││ SQLite /    ││ Telegram Bot │   │            │
+│  │ FastAPI (Port 8000)    │  │ (Port 8086) ││ PostgreSQL  ││ & SMTP Gmail │───┘            │
+│  │ RAM: ~350MB - 500MB    │  │ RAM: ~450MB ││ RAM: ~200MB ││ (2-Way Alert)│                │
+│  └────────────────────────┘  └─────────────┘└─────────────┘└──────────────┘                │
+└────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Bảng Định Mức Tài Nguyên VPS Thực Tế:
+| Container / Dịch vụ | CPU Ước Tính | RAM Thực Tế | Dung Lượng Ổ Cứng | Vai Trò & Nhiệm Vụ |
+|---|---|---|---|---|
+| **smartdorm-backend** | 0.2 – 0.5 vCPU | ~300 MB | ~500 MB (Image) | API Core, Logic Rơ-le, WebSocket, E-Billing, Telegram |
+| **smartdorm-frontend** | 0.2 – 0.4 vCPU | ~300 MB | ~250 MB (Standalone)| Giao diện Admin Control Center & Resident Portal PWA |
+| **smartdorm-ml-service** | 0.3 – 0.8 vCPU | ~400 MB | ~800 MB (Scikit/ML) | Model GBM, Isolation Forest, Occupancy RF |
+| **smartdorm-influxdb** | 0.2 – 0.5 vCPU | ~450 MB | ~2–5 GB (TSDB Data) | Lưu trữ chuỗi thời gian telemetry vi khí hậu |
+| **smartdorm-postgres / SQLite** | 0.1 – 0.3 vCPU | ~200 MB | ~1 GB (Data) | CSDL quan hệ tài khoản, phòng, thiết bị, access log |
+| **smartdorm-mqtt (Mosquitto)** | 0.05 – 0.1 vCPU | ~40 MB | ~50 MB (Image) | Broker trung gian nhận telemetry & phát lệnh phần cứng |
+| **Nginx + OS Ubuntu 22.04** | 0.1 vCPU | ~350 MB | ~10 GB (HĐH & Logs)| Reverse proxy, định tuyến SSL và tường lửa UFW |
+| **TỔNG HỆ THỐNG** | **2 vCPU** | **~2.1 GB RAM** | **~20 GB SSD** | **Khuyến nghị thuê gói 2 vCPU, 4GB RAM, 40-50GB SSD** |
+

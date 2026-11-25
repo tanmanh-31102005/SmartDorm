@@ -14,17 +14,18 @@ SmartDorm sử dụng **Hybrid Database Architecture** — kết hợp 2 loại 
 │  SQLite / PostgreSQL    │  InfluxDB 2.7 (TSDB)          │
 │  (Relational DB)        │  (Time-Series DB)             │
 ├─────────────────────────┼───────────────────────────────┤
-│ • Dữ liệu cấu trúc      │ • Chuỗi thời gian tần suất cao│
-│ • Users, Rooms, Devices │ • Nhiệt độ, Độ ẩm, Gas       │
-│ • Access Logs           │ • Công suất điện (W)          │
-│ • Emergency Records     │ • Điện năng tích lũy (kWh)    │
-│ • AI Predictions        │ • Retention: 30 ngày          │
+│ • Dữ liệu quan hệ       │ • Chuỗi thời gian tần suất cao│
+│ • Users, Rooms, Devices │ • Nhiệt độ, Độ ẩm, Gas MQ-2   │
+│ • Access Logs, Alerts   │ • Công suất & Năng lượng      │
+│ • AI Predictions        │ • Tier 1 Raw: 30 ngày (3s)    │
+│ • Feature Store (180d)  │ • Tier 2 Aggregate: 180 ngày  │
 │ • Automation Rules      │ • Bucket: smart-dormitory-raw │
 └─────────────────────────┴───────────────────────────────┘
 ```
 
-**Dev:** SQLite (`backend/prisma/dev.db`)  
-**Production:** PostgreSQL 16 (`backend/prisma/schema.postgresql.prisma`)
+- **Môi trường Dev / Demo / Edge:** SQLite (`backend/prisma/dev.db`) — Khởi chạy 1-click tức thì, zero-configuration.
+- **Môi trường Production:** PostgreSQL 16 (Hỗ trợ multi-tenant, connection pooling và transaction an toàn cao).
+- **Chiến lược Telemetry Retention:** Tầng thô (Raw) lưu 30 ngày để tối ưu dung lượng RAM/Disk; Tầng tổng hợp (Aggregated/Feature Store trong Relational DB và InfluxDB task) lưu 180 ngày để phục vụ chu kỳ Retraining AI 45–90 ngày.
 
 ---
 
@@ -57,9 +58,9 @@ model User {
 **Ví dụ dữ liệu:**
 | id | studentId | fullName | email | role | rfidCardId |
 |---|---|---|---|---|---|
-| cla... | ADMIN001 | Admin SmartDorm | admin@smartdorm.com | ADMIN | null |
-| clb... | SV001 | Nguyễn Văn An | student1@smartdorm.com | STUDENT | CARD_A1B2C3D4 |
-| clc... | SV002 | Trần Thị Bình | student2@smartdorm.com | STUDENT | CARD_E5F6G7H8 |
+| cmv... | ADMIN001 | Nguyễn Tấn Mạnh | admin@ktx.edu.vn | ADMIN | null |
+| cmv... | SV2024001 | Nguyễn Văn An | sv001@student.edu.vn | STUDENT | CARD_A1B2C3D4 |
+| cmv... | SV2024002 | Trần Thị Bình | sv002@student.edu.vn | STUDENT | CARD_E5F6G7H8 |
 
 ### 2.2 Building (Tòa Nhà)
 
@@ -209,7 +210,7 @@ model Emergency {
 ```prisma
 model MlModel {
   id           String    @id @default(cuid())
-  modelName    String    // "energy-baseline" | "energy-prophet" | "device-anomaly-iforest" | "occupancy-rule-proxy"
+  modelName    String    // "energy-baseline" | "energy-gbm" (Champion) | "device-anomaly-iforest" | "occupancy-classifier"
   modelType    String    // "FORECAST" | "ANOMALY" | "OCCUPANCY"
   version      String    @default("v1")
   status       String    @default("EXPERIMENTAL")  // "EXPERIMENTAL" | "ACTIVE" | "DEPRECATED"
@@ -422,7 +423,9 @@ from(bucket: "smart-dormitory-raw")
   |> aggregateWindow(every: 15m, fn: mean)
 ```
 
-**Retention Policy:** 30 ngày (tự động xóa dữ liệu cũ hơn 30 ngày)
+**Retention Policy (Chính sách lưu trữ phân tầng):**
+- **Bucket `smart-dormitory-raw`:** 30 ngày (Dữ liệu chuỗi thời gian chi tiết 3s để phân tích realtime & cảnh báo khẩn cấp).
+- **Relational DB Feature Store (`SensorData`) / InfluxDB Downsampled:** 180 ngày (Dữ liệu lấy mẫu trung bình 15m/1h để đảm bảo pipeline retraining AI có đủ cửa sổ huấn luyện 45–90 ngày mà không bị giới hạn bởi chu kỳ dọn dẹp raw data).
 
 ---
 
@@ -464,15 +467,18 @@ AutomationRule ──< AutomationExecution
 ## 7. Seed Data
 
 ### Demo Users (từ `prisma/seed.ts`)
-| Tài khoản | Vai trò | Phòng | RFID |
-|---|---|---|---|
-| admin@smartdorm.com | ADMIN | — | — |
-| student1@smartdorm.com | STUDENT | A101 | CARD_A1B2C3D4 |
-| student2@smartdorm.com | STUDENT | A102 | CARD_E5F6G7H8 |
+| Tài khoản | Họ và Tên | Vai trò | MSSV | Phòng | Mã RFID |
+|---|---|---|---|---|---|
+| `admin@ktx.edu.vn` | Nguyễn Tấn Mạnh | ADMIN | ADMIN001 | — | — |
+| `sv001@student.edu.vn` | Nguyễn Văn An | STUDENT | SV2024001 | A101 | CARD_A1B2C3D4 |
+| `sv002@student.edu.vn` | Trần Thị Bình | STUDENT | SV2024002 | A101 | CARD_E5F6G7H8 |
+| `sv003@student.edu.vn` | Lê Văn Cường | STUDENT | SV2024003 | A102 | CARD_I9J0K1L2 |
+| `sv004@student.edu.vn` | Phạm Minh Đức | STUDENT | SV2024004 | A101 | CARD_M3N4O5P6 |
 
 ### Demo Rooms
-- **Tòa A:** A101, A102, A103, A104 (Tầng 1)
-- **Tòa B:** B201, B202, B203 (Tầng 2)
+- **Tòa A:** A101, A102, A103 (Tầng 1)
+- **Tòa B:** B204 (Tầng 2)
+- **Tòa C:** C301 (Tầng 3)
 
 ### Demo Devices (mỗi phòng)
 - 1 đèn chiếu sáng (LIGHT)

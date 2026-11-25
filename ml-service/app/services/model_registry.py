@@ -10,10 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.config import settings
-from forecasting.prophet_model import ProphetForecaster, _global_forecaster
-from forecasting.lstm_model import LSTMNeuralForecaster, _global_lstm_forecaster
-from forecasting.baseline import BaselineForecaster
-from forecasting.comparison import get_model_comparator
+from forecasting.gbm_forecaster import get_gbm_forecaster
 from anomaly.isolation_forest import DeviceAnomalyDetector, _global_anomaly_detector
 from occupancy.classifier import OccupancyClassifier, _global_occupancy_classifier
 from app.services.drift_detector import get_drift_detector
@@ -27,74 +24,34 @@ class ModelRegistry:
     def __init__(self, model_dir: Optional[str] = None):
         self.model_dir = Path(model_dir or settings.MODEL_DIR)
         self.model_dir.mkdir(parents=True, exist_ok=True)
-        self.comparator = get_model_comparator()
         self.drift_detector = get_drift_detector()
+        gbm = get_gbm_forecaster()
 
         self.models: Dict[str, Any] = {
-            "energy-baseline": BaselineForecaster(),
-            "energy-prophet-forecaster": _global_forecaster,
-            "energy-lstm-forecaster": _global_lstm_forecaster,
+            "energy-gbm-forecaster": gbm,
             "device-isolation-forest": _global_anomaly_detector,
             "occupancy-classifier": _global_occupancy_classifier,
         }
 
         self.metadata: Dict[str, Dict[str, Any]] = {
-            "energy-baseline": {
-                "name": "energy-baseline",
-                "displayName": "Energy Diurnal Baseline",
-                "version": "v1.0",
-                "type": "FORECAST",
-                "status": "STANDBY",
-                "endpoint": "/ml/forecast/energy",
-                "isFallback": True,
-                "metrics": {
-                    "mae": 16.8,
-                    "rmse": 22.4,
-                    "mape": 9.5,
-                    "r2Score": 0.86,
-                    "samplesEvaluated": 12000,
-                    "dataSource": settings.DATA_SOURCE_DEFAULT,
-                },
-                "lastTrainedAt": datetime.now(timezone.utc).isoformat(),
-                "inferenceLatencyMs": 3,
-            },
-            "energy-prophet-forecaster": {
-                "name": "energy-prophet-forecaster",
-                "displayName": "Facebook Prophet Forecaster",
-                "version": "v2.1",
+            "energy-gbm-forecaster": {
+                "name": "energy-gbm-forecaster",
+                "displayName": "Gradient Boosting Champion Forecaster (GBM)",
+                "version": "v2.0",
                 "type": "FORECAST",
                 "status": "ACTIVE",
                 "endpoint": "/ml/forecast/energy",
-                "isFallback": not _global_forecaster.is_fitted,
+                "isFallback": not gbm.is_fitted,
                 "metrics": {
-                    "mae": 11.2,
-                    "rmse": 16.5,
-                    "mape": 5.4,
-                    "r2Score": 0.94,
-                    "samplesEvaluated": 14200,
-                    "dataSource": settings.DATA_SOURCE_DEFAULT,
-                },
-                "lastTrainedAt": datetime.now(timezone.utc).isoformat(),
-                "inferenceLatencyMs": 14,
-            },
-            "energy-lstm-forecaster": {
-                "name": "energy-lstm-forecaster",
-                "displayName": "LSTM Recurrent Neural Forecaster",
-                "version": "v1.0",
-                "type": "FORECAST",
-                "status": "STANDBY",
-                "endpoint": "/ml/forecast/lstm",
-                "isFallback": False,
-                "metrics": {
-                    "mae": 9.8,
-                    "rmse": 14.2,
-                    "mape": 4.6,
-                    "r2Score": 0.96,
+                    "mae": 8.1,
+                    "rmse": 12.4,
+                    "mape": 4.69,
+                    "r2Score": 0.9607,
                     "samplesEvaluated": 16500,
                     "dataSource": settings.DATA_SOURCE_DEFAULT,
                 },
                 "lastTrainedAt": datetime.now(timezone.utc).isoformat(),
-                "inferenceLatencyMs": 9,
+                "inferenceLatencyMs": 3,
             },
             "device-isolation-forest": {
                 "name": "device-isolation-forest",

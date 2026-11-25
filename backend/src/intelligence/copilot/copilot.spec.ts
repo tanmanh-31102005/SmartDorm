@@ -49,17 +49,17 @@ describe('SmartDorm AI Copilot - 15 Verification Test Suite', () => {
 
   const mockMlClient = {
     predictEnergyForecast: jest.fn().mockResolvedValue({
-      source: 'LSTM_NEURAL_NETWORK',
+      source: 'GBM_CHAMPION_FORECASTER',
       summary: { peakPowerW: 98400, peakTimestamp: '19:30', totalForecastKwh: 1920 },
     }),
     predictOccupancy: jest.fn().mockResolvedValue([
       { id: '101', roomNumber: '101', predictedState: 'OCCUPIED' },
     ]),
     getModelHealthList: jest.fn().mockResolvedValue([
-      { modelName: 'LSTM Neural Forecaster', status: 'HEALTHY', mae: 0.38 },
+      { modelName: 'Gradient Boosting (GBM Champion)', status: 'HEALTHY', mae: 8.28 },
     ]),
     checkModelDrift: jest.fn().mockResolvedValue([
-      { modelName: 'LSTM', isDriftDetected: false, isStale: false },
+      { modelName: 'GBM', isDriftDetected: false, isStale: false },
     ]),
   };
 

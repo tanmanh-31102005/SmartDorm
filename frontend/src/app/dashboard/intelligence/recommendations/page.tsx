@@ -95,7 +95,7 @@ export default function RecommendationsPage() {
             </Badge>
           </div>
           <p className="text-xs text-slate-500 font-medium">
-            Hệ thống tự động phân tích dữ liệu tổng hợp và đưa ra các quyết định điều phối năng lượng, xử lý rủi ro thiết bị và quản lý an ninh KTX.
+            Hệ thống tự động phân tích dữ liệu cảm biến và đưa ra các quyết định điều phối rơ-le thiết bị, xử lý rủi ro PCCC và quản lý an ninh KTX.
           </p>
         </div>
 
@@ -105,9 +105,9 @@ export default function RecommendationsPage() {
               Xem Mô Hình
             </Button>
           </Link>
-          <Link href="/dashboard/intelligence/energy">
-            <Button variant="primary" size="sm" icon={<Zap className="w-3.5 h-3.5" />}>
-              Dự Báo Phụ Tải
+          <Link href="/dashboard/intelligence/occupancy">
+            <Button variant="primary" size="sm" icon={<Users className="w-3.5 h-3.5" />}>
+              Dự Đoán Lưu Trú
             </Button>
           </Link>
         </div>
@@ -136,11 +136,11 @@ export default function RecommendationsPage() {
         />
 
         <MetricCard
-          label="TIẾT KIỆM NĂNG LƯỢNG ƯỚC TÍNH"
-          value="~11.5 Tr ₫ / tháng"
-          change={{ value: '-18.5%', trend: 'down', label: 'phụ tải đỉnh' }}
-          subValue="Pre-cooling & Quản lý phòng trống"
-          tag="Green Energy"
+          label="HIỆU QUẢ ĐIỀU KHIỂN THIẾT BỊ"
+          value="99.2%"
+          change={{ value: '+14.5%', trend: 'up', label: 'tuân thủ tự động' }}
+          subValue="Tự động hóa rơ-le & bảo đảm vi khí hậu"
+          tag="Vận hành tối ưu"
           tagVariant="info"
           icon={<TrendingDown className="w-4 h-4 text-blue-900" />}
           iconBg="bg-blue-50 text-blue-900"
@@ -162,7 +162,6 @@ export default function RecommendationsPage() {
         <div className="flex flex-wrap items-center gap-2">
           {[
             { id: 'ALL', label: 'Tất Cả', icon: Sparkles },
-            { id: 'ENERGY', label: 'Năng Lượng & Điện', icon: Zap },
             { id: 'DEVICE', label: 'Thiết Bị & Rơ-le', icon: Cpu },
             { id: 'SECURITY', label: 'An Ninh & Cửa', icon: ShieldCheck },
             { id: 'OCCUPANCY', label: 'Lưu Trú & Phòng', icon: Users },

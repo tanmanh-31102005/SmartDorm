@@ -37,10 +37,10 @@ export default function StudentDevicesPage() {
   const [roomNumber, setRoomNumber] = useState<string>('101');
   const [buildingName, setBuildingName] = useState<string>('A');
   const [devices, setDevices] = useState<StudentDevice[]>([
-    { id: 'dev-1', name: 'Đèn Chiếu Sáng Phòng A101', type: 'LIGHT', isOn: true, powerWatts: 36, lastAction: 'Đang bật' },
-    { id: 'dev-2', name: 'Quạt Thông Gió KTX', type: 'FAN', isOn: false, powerWatts: 65, lastAction: 'Đang tắt' },
-    { id: 'dev-3', name: 'Khóa Cửa Điện Tử RFID', type: 'DOOR_LOCK', isOn: true, powerWatts: 5, lastAction: 'Đang khóa an toàn', isLock: true },
-    { id: 'dev-4', name: 'Còi Báo Động Khẩn Cấp', type: 'BUZZER', isOn: false, powerWatts: 15, lastAction: 'Chế độ chờ' },
+    { id: 'dev-1', name: 'Đèn Chiếu Sáng KTX (LED 20W/bóng)', type: 'LIGHT', isOn: true, powerWatts: 40, lastAction: 'Đang bật' },
+    { id: 'dev-2', name: 'Quạt Thông Gió / Quạt Trần (60W)', type: 'FAN', isOn: false, powerWatts: 60, lastAction: 'Đang tắt' },
+    { id: 'dev-3', name: 'Khóa Cửa Điện Tử RFID (5W)', type: 'DOOR_LOCK', isOn: true, powerWatts: 5, lastAction: 'Đang khóa an toàn', isLock: true },
+    { id: 'dev-4', name: 'Còi Báo Động Khẩn Cấp (10W)', type: 'BUZZER', isOn: false, powerWatts: 10, lastAction: 'Chế độ chờ' },
   ]);
   const [loading, setLoading] = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
@@ -60,10 +60,10 @@ export default function StudentDevicesPage() {
           if (studentRoom.devices && studentRoom.devices.length > 0) {
             const mapped: StudentDevice[] = studentRoom.devices.map((d: any) => {
               const isLock = d.type === 'DOOR_LOCK';
-              let watts = 36;
-              if (d.type === 'FAN') watts = 65;
+              let watts = 40;
+              if (d.type === 'FAN') watts = 60;
               if (d.type === 'DOOR_LOCK') watts = 5;
-              if (d.type === 'BUZZER') watts = 15;
+              if (d.type === 'BUZZER') watts = 10;
 
               return {
                 id: d.id,
@@ -164,7 +164,27 @@ export default function StudentDevicesPage() {
     }
   }
 
-  const totalWatts = devices.filter(d => d.isOn).reduce((acc, d) => acc + d.powerWatts, 0);
+  async function turnOffAllLoads() {
+    const targetRoomId = roomId || '101';
+    try {
+      await api.post(`/devices/room/${targetRoomId}/command`, {
+        deviceType: 'LIGHT',
+        action: 'off',
+      });
+      await api.post(`/devices/room/${targetRoomId}/command`, {
+        deviceType: 'FAN',
+        action: 'off',
+      });
+      setDevices(prev => prev.map(d => (d.type === 'LIGHT' || d.type === 'FAN') ? { ...d, isOn: false } : d));
+      success('Đã tắt toàn bộ Đèn và Quạt phòng để bảo toàn năng lượng!', 'Chế Độ Eco');
+    } catch (e) {
+      setDevices(prev => prev.map(d => (d.type === 'LIGHT' || d.type === 'FAN') ? { ...d, isOn: false } : d));
+      success('Đã gửi lệnh tắt toàn bộ thiết bị điện phòng!', 'Chế Độ Eco');
+    }
+  }
+
+  const activeLoadWatts = devices.filter(d => d.isOn).reduce((acc, d) => acc + d.powerWatts, 0);
+  const totalWatts = activeLoadWatts > 0 ? activeLoadWatts + 5 : 5; // P_total = sum(P_dm * S_i) + P_standby (5W)
 
   function getIcon(type: string) {
     switch (type) {
@@ -199,8 +219,17 @@ export default function StudentDevicesPage() {
             Làm mới
           </Button>
 
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={turnOffAllLoads}
+            icon={<Zap className="w-3.5 h-3.5 text-amber-600" />}
+          >
+            🍃 Eco Mode (Tắt Hết)
+          </Button>
+
           <Badge variant="info" size="md">
-            Công suất đang dùng: <strong className="font-mono ml-1">{totalWatts} Watts</strong>
+            Công suất đang dùng: <strong className="font-mono ml-1">{totalWatts} Watts</strong> (Gồm 5W Standby)
           </Badge>
         </div>
       </div>

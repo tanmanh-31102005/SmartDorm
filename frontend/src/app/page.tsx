@@ -24,6 +24,7 @@ import {
   Droplets
 } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
+import { API_BASE_URL } from '@/lib/api';
 
 export default function HomePage() {
   return (
@@ -47,7 +48,7 @@ export default function HomePage() {
 
           <div className="flex items-center gap-3">
             <a 
-              href="http://localhost:3001/api/docs" 
+              href={`${API_BASE_URL}/api/docs`} 
               target="_blank" 
               rel="noreferrer"
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
@@ -96,7 +97,7 @@ export default function HomePage() {
               <ArrowRight className="w-4 h-4" />
             </Link>
             <a 
-              href="http://localhost:3001/api/docs" 
+              href={`${API_BASE_URL}/api/docs`} 
               target="_blank" 
               rel="noreferrer"
               className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-100 transition-colors"

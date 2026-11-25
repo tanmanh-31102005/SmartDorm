@@ -1,0 +1,35 @@
+\chapter*{TÓM TẮT}
+\addcontentsline{toc}{chapter}{TÓM TẮT}
+
+\begin{center}
+    {\large \bfseries HỆ THỐNG QUẢN LÝ KÝ TÚC XÁ THÔNG MINH (SMARTDORM)}\\[0.5cm]
+\end{center}
+
+Công tác quản lý và vận hành ký túc xá sinh viên tại các trường đại học hiện nay đang đối mặt với nhiều bài toán cấp bách, bao gồm: nguy cơ mất an toàn phòng cháy chữa cháy (chập cháy thiết bị điện, rò rỉ khí gas nguy hiểm từ khu vực sinh hoạt), quy trình kiểm soát an ninh ra vào thủ công tốn kém nhân lực và dễ xảy ra sai sót, cũng như sự thiếu vắng một nền tảng số hóa tập trung giúp sinh viên tương tác minh bạch với ban quản lý. Xuất phát từ thực tiễn đó, đề tài \textbf{``Hệ thống Quản lý Ký túc xá Thông minh (SmartDorm)''} được thiết kế và hiện thực hóa với kiến trúc 5 tầng toàn diện (Tầng thiết bị nhúng IoT, Tầng truyền thông mạng, Tầng xử lý nghiệp vụ Backend, Tầng cơ sở dữ liệu và Tầng giao diện người dùng đa nền tảng), tập trung giải quyết trọn vẹn các yêu cầu về an toàn, an ninh và tiện ích phòng ở.
+
+Ở tầng phần cứng, hệ thống tích hợp nút mạng IoT dựa trên vi điều khiển ESP32 DevKit V1 (NodeMCU-32S) kết nối cảm biến nhiệt độ - độ ẩm kỹ thuật số DHT22, cảm biến phát hiện khí gas/khói nồng độ cao MQ-2, module relay 4 kênh cách ly quang điều khiển độc lập các phụ tải (đèn chiếu sáng, quạt thông gió, khóa cửa điện từ Solenoid), còi báo động Active Buzzer 5V và hệ thống nút bấm vật lý hỗ trợ điều khiển tại chỗ. Đặc biệt, hệ thống tích hợp cơ chế kiểm soát an ninh thẻ từ RFID (chuẩn 13.56 MHz) với thuật toán sinh mã thẻ tất định tự động theo mã số sinh viên dựa trên hàm băm SHA-256. Để đảm bảo an toàn tuyệt đối về phòng cháy chữa cháy, hệ thống xây dựng cơ chế Rule Engine tự động: ngay khi nồng độ khí gas đạt ngưỡng nguy hiểm ($\ge 80\%$), hệ thống lập tức kích hoạt còi báo động tại chỗ, tự động cắt toàn bộ relay nguồn điện của phòng để triệt tiêu nguồn phát sinh tia lửa điện, đồng thời phát lệnh cảnh báo khẩn cấp tức thời (Emergency Broadcast) đến ban quản lý qua nhiều kênh truyền thông.
+
+Ở tầng phần mềm, hệ thống backend được xây dựng trên nền tảng NestJS (TypeScript) theo kiến trúc Clean Architecture mô-đun hóa, tích hợp giao thức truyền thông nhẹ MQTT (Eclipse Mosquitto QoS 1) với độ trễ truyền nhận dưới $40\text{ms}$, WebSockets (Socket.IO) cập nhật dữ liệu vi khí hậu và trạng thái thiết bị thời gian thực dưới $15\text{ms}$, và Prisma ORM kết nối cơ sở dữ liệu SQLite/PostgreSQL chuẩn hóa 12 thực thể. Hệ thống áp dụng mẫu thiết kế Command Pattern với cơ chế hoàn tác (Undo) cho phép khôi phục trạng thái thiết bị tức thì, cùng hệ thống thông báo đa kênh tự động gồm Telegram Bot và Email SMTP (Nodemailer). Bên cạnh đó, hệ thống tích hợp phân hệ trí tuệ nhân tạo (AI Anomaly Detection) nhằm phát hiện sớm các bất thường môi trường phòng ở và trợ lý ảo thông minh AI Copilot hỗ trợ giải thích nguyên nhân sự cố cho ban quản lý. Giao diện người dùng phát triển trên Next.js 16 với hai phân hệ phân quyền nghiêm ngặt (Admin Portal và Student Portal), hỗ trợ đầy đủ các biểu đồ thống kê và tính năng xuất báo cáo thật định dạng Excel/CSV. Kết quả kiểm thử toàn diện trên 84 ca kiểm thử tự động khẳng định tính ổn định, độ tin cậy và giá trị ứng dụng thực tiễn của đề tài.
+
+\vspace{0.5cm}
+\noindent \textbf{Từ khóa:} Smart Dormitory, Internet of Things (IoT), ESP32, PCCC tự động, RFID, Command Pattern with Undo, NestJS, Next.js, MQTT, WebSockets, Anomaly Detection.
+
+\newpage
+
+\chapter*{ABSTRACT}
+\addcontentsline{toc}{chapter}{ABSTRACT}
+
+\begin{center}
+    {\large \bfseries SMART DORMITORY MANAGEMENT SYSTEM (SMARTDORM)}\\[0.5cm]
+\end{center}
+
+Modern university dormitory management faces pressing operational challenges, particularly fire and explosion hazards stemming from electrical faults and combustible gas leakages, inefficient manual entry-exit security monitoring, and the lack of a centralized digital communication channel between students and housing administrators. To address these critical issues, this capstone project designs and implements the \textbf{``Smart Dormitory Management System (SmartDorm)''} structured upon a robust five-tier architecture encompassing IoT Edge Sensing, Network Communication, Backend Business Logic, Relational Database Storage, and Modern Responsive Web Applications.
+
+At the hardware layer, the edge node employs an ESP32 DevKit V1 (NodeMCU-32S) microcontroller interfaced with a DHT22 digital microclimate sensor (temperature and humidity), an MQ-2 combustible gas and smoke detector, an optocoupler-isolated 4-channel relay module controlling lighting, exhaust ventilation, and solenoid door locks, a 5V active buzzer, and tactile buttons for local manual control. Access control is powered by a 13.56 MHz RFID mechanism featuring a deterministic, automated student card identifier generation algorithm based on SHA-256 hashing. Crucially, a specialized Fire Safety Rule Engine is engineered into the system: upon detecting hazardous combustible gas concentrations ($\ge 80\%$), the node immediately sounds local alarms, executes an automated room-wide electrical power cut-off to eliminate spark ignition hazards, and broadcasts high-priority emergency alerts via bi-directional communication channels.
+
+At the software layer, the backend is built with NestJS (TypeScript) adopting clean modular architecture, integrating lightweight MQTT messaging (Eclipse Mosquitto QoS 1) with an end-to-end latency below $40\text{ms}$, bi-directional WebSockets (Socket.IO) delivering sub-15ms real-time telemetry streaming, and Prisma ORM managing 12 relational entities. The device control subsystem incorporates the Command Design Pattern with Undo capability, supported by automated multi-channel notifications via Telegram Bot Polling and SMTP Email (Nodemailer). Furthermore, an AI Anomaly Detection service detects microclimate irregularities and a conversational AI Copilot provides contextual incident explanation. The user interface, built on Next.js 16 App Router, provides strict Role-Based Access Control (RBAC) portals for administrators and residents, complete with real-time dashboards and native Excel/CSV data exports. Comprehensive regression testing across 84 automated test cases validates the high robustness, responsiveness, and practical utility of the SmartDorm system.
+
+\vspace{0.5cm}
+\noindent \textbf{Keywords:} Smart Dormitory, Internet of Things (IoT), ESP32, Fire Safety Automation, RFID Access Control, Command Pattern, NestJS, Next.js, MQTT, WebSockets, Anomaly Detection.
+
+\newpage

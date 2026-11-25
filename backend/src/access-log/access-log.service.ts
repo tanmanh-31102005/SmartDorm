@@ -37,12 +37,34 @@ export class AccessLogService implements OnModuleInit {
       ? await this.prisma.room.findFirst({ where: { roomNumber: roomNum, buildingId: buildingRec.id } })
       : null;
 
+    // Phân tích quyền truy cập thẻ authoritatively từ CSDL
+    const cardId = data.card_id || 'UNKNOWN';
+    const isExplicitInvalid = cardId === 'CARD_INVALID99' || cardId.includes('INVALID');
+
+    let authorized = false;
+    if (isExplicitInvalid) {
+      authorized = false;
+    } else if (user && room && user.roomId === room.id && user.isActive) {
+      // Sinh viên chính thức được phân công vào đúng phòng này
+      authorized = true;
+    } else if (user && room && user.roomId !== room.id) {
+      // Sinh viên phòng khác cố tình quẹt vào phòng này
+      authorized = false;
+    } else if (cardId === 'CARD_A1B2C3D4' || cardId === 'CARD_E5F6G7H8') {
+      // Thẻ sinh viên mẫu phòng 101 hợp lệ
+      authorized = true;
+    } else if (data.authorized !== undefined) {
+      authorized = Boolean(data.authorized);
+    }
+
+    const action = authorized ? (data.action === 'exit' ? 'exit' : 'entry') : 'denied';
+
     if (room) {
       await this.prisma.accessLog.create({
         data: {
-          rfidCardId: data.card_id || 'UNKNOWN',
-          action:     data.action  || 'entry',
-          authorized: data.authorized ?? true,
+          rfidCardId: cardId,
+          action:     action,
+          authorized: authorized,
           userId:     user?.id,
           roomId:     room.id,
         },
@@ -51,24 +73,36 @@ export class AccessLogService implements OnModuleInit {
 
     // Broadcast log lên Dashboard real-time
     this.eventsGateway.broadcastAccessLog({
-      rfidCardId: data.card_id,
-      cardId:     data.card_id,
-      authorized: data.authorized,
-      action:     data.action,
+      rfidCardId: cardId,
+      cardId:     cardId,
+      authorized: authorized,
+      action:     action,
       room:       roomNum,
       building,
       user:       user ? { fullName: user.fullName, name: user.fullName, studentId: user.studentId } : null,
       timestamp:  new Date().toISOString(),
     });
 
-    if (!data.authorized) {
-      this.logger.warn(`UNAUTHORIZED: ${data.card_id} at ${building}-${roomNum}`);
-      await this.notificationsService.sendAccessAlert(roomNum, data.card_id);
+    if (!authorized) {
+      this.logger.warn(`UNAUTHORIZED: ${cardId} at ${building}-${roomNum}`);
+      await this.notificationsService.sendAccessAlert(roomNum, cardId);
+    } else {
+      this.logger.log(`AUTHORIZED ACCESS GRANTED: ${cardId} (${user?.fullName || 'Sinh viên'}) at ${building}-${roomNum}`);
     }
   }
 
   async getLogs(page = 1, limit = 50, roomId?: string) {
-    const where: any = roomId ? { roomId } : {};
+    let where: any = {};
+    if (roomId && roomId.trim() !== '') {
+      const cleanRoom = roomId.replace(/^(room-|P\.|A-|B-|C-|A|B|C)/i, '').trim();
+      where = {
+        OR: [
+          { roomId },
+          { room: { roomNumber: roomId } },
+          { room: { roomNumber: cleanRoom } },
+        ],
+      };
+    }
     const [logs, total] = await Promise.all([
       this.prisma.accessLog.findMany({
         where,

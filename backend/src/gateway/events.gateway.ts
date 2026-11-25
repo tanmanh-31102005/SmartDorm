@@ -57,6 +57,12 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.emit('device:status', { roomId, ...status });
   }
 
+  /** Broadcast real-time command log entry to all connected clients */
+  broadcastCommandLog(log: any) {
+    this.server.emit('command:new', log);
+    this.server.emit('command:log', log);
+  }
+
   /** Broadcast access log event */
   broadcastAccessLog(log: any) {
     this.server.emit('access:log', log);

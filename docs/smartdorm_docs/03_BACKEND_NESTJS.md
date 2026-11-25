@@ -45,7 +45,7 @@ Backend được xây dựng bằng **NestJS 10.x** (TypeScript) — một frame
 **Request:**
 ```json
 {
-  "email": "admin@smartdorm.com",
+  "email": "admin@ktx.edu.vn",
   "password": "admin123"
 }
 ```
@@ -55,9 +55,9 @@ Backend được xây dựng bằng **NestJS 10.x** (TypeScript) — một frame
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
-    "id": "clxxx...",
-    "email": "admin@smartdorm.com",
-    "fullName": "Admin SmartDorm",
+    "id": "cmvj0ajjj000pfrtqny0gztmn",
+    "email": "admin@ktx.edu.vn",
+    "fullName": "Nguyễn Tấn Mạnh",
     "role": "ADMIN",
     "studentId": "ADMIN001"
   }
@@ -94,23 +94,26 @@ async anyUser() { ... }
 | Method | Endpoint | Auth | Mô tả |
 |---|---|---|---|
 | POST | `/api/auth/login` | No | Đăng nhập, nhận JWT |
-| POST | `/api/auth/register` | No | Đăng ký tài khoản sinh viên |
-| GET | `/api/auth/profile` | JWT | Lấy thông tin tài khoản hiện tại |
-| PATCH | `/api/auth/profile` | JWT | Cập nhật thông tin tài khoản |
+| POST | `/api/auth/register` | No | Đăng ký tài khoản sinh viên (auto role STUDENT & auto RFID UID) |
+| GET | `/api/auth/profile` | JWT | Lấy thông tin tài khoản hiện tại kèm phòng lưu trú |
+| PATCH | `/api/auth/profile` | JWT | Cập nhật thông tin tài khoản (SĐT, họ tên) |
 
 ---
 
 ## 4. Rooms API
 
 ### Tổng Quan
-Quản lý toàn bộ phòng ký túc xá trong hệ thống.
+Quản lý toàn bộ phòng ký túc xá và phân bổ cư dân sinh viên trong hệ thống.
 
 | Method | Endpoint | Auth | Mô tả |
 |---|---|---|---|
-| GET | `/api/rooms` | JWT | Lấy danh sách phòng |
-| GET | `/api/rooms/overview` | JWT | Tổng quan phòng + cảm biến + thiết bị |
-| GET | `/api/rooms/:id` | JWT | Chi tiết 1 phòng |
-| POST | `/api/rooms` | ADMIN | Tạo phòng mới |
+| GET | `/api/rooms` | JWT | Lấy danh sách tất cả phòng |
+| GET | `/api/rooms/overview` | JWT | Tổng quan phòng + cảm biến vi khí hậu + thiết bị |
+| GET | `/api/rooms/stats` | JWT | Thống kê số phòng, tỷ lệ lấp đầy campus |
+| GET | `/api/rooms/residents/all` | JWT | Danh sách tất cả sinh viên lưu trú cho Admin |
+| PATCH | `/api/rooms/residents/:userId/assign-room` | ADMIN | **Phân bổ hoặc điều chuyển phòng cho sinh viên** |
+| GET | `/api/rooms/:id` | JWT | Chi tiết 1 phòng kèm thiết bị & sinh viên |
+| POST | `/api/rooms` | ADMIN | Tạo phòng KTX mới |
 | PATCH | `/api/rooms/:id` | ADMIN | Cập nhật thông tin phòng |
 | DELETE | `/api/rooms/:id` | ADMIN | Xóa phòng |
 
@@ -385,33 +388,55 @@ socket.on('emergency:alert', (alert) => {
 
 ---
 
-## 12. Cấu Hình Environment
+### 12.1 Môi Trường Phát Triển & Demo Cục Bộ (Local Development / 1-Click)
 
-**File:** `backend/.env`
+**File:** `backend/.env` (Tự động sinh bởi `start.ps1` hoặc sao chép từ `backend/.env.example`):
 
 ```env
-# Database
-DATABASE_URL=file:./prisma/dev.db
+# Database (SQLite cục bộ - Zero setup)
+DATABASE_URL="file:./dev.db"
 
-# JWT
-JWT_SECRET=smart_dormitory_jwt_secret_key_2026_super_secure
+# JWT Authentication (Placeholder - Thay bằng secret ngẫu nhiên)
+JWT_SECRET=<YOUR_DEV_OR_PROD_JWT_SECRET>
 JWT_EXPIRES_IN=7d
 
-# MQTT
-MQTT_BROKER_URL=mqtt://localhost:1883
+# MQTT Broker (HiveMQ Cloud hoặc Local Mosquitto)
+MQTT_BROKER_URL=mqtt://broker.hivemq.com:1883
+# Khi chạy Mosquitto local: mqtt://localhost:1883
 
-# ML Service
+# ML Service (FastAPI)
 ML_SERVICE_URL=http://localhost:8000
 
-# InfluxDB
+# InfluxDB (Tùy chọn - Tự động Fallback sang SQLite nếu chưa có Docker)
 INFLUXDB_URL=http://localhost:8086
-INFLUXDB_TOKEN=smart-dormitory-super-secret-token-12345
+INFLUXDB_TOKEN=<YOUR_INFLUXDB_TOKEN>
 INFLUXDB_ORG=smart-dormitory
 INFLUXDB_BUCKET=smart-dormitory-raw
 
-# Server
+# Cấu hình Mạng & Server
 PORT=3001
+FRONTEND_URL=http://localhost:3000
 NODE_ENV=development
+```
+
+### 12.2 Môi Trường Triển Khai Production (Cloud / Trường Học)
+
+**File:** `backend/.env.production`:
+
+```env
+# Database (PostgreSQL Production với connection pooling)
+DATABASE_URL="postgresql://smartdorm_user:<STRONG_DB_PASSWORD>@postgres:5432/smartdorm_db?schema=public&connection_limit=20"
+
+# Bảo mật & Mã hóa
+JWT_SECRET=<STRONG_64_CHAR_RANDOM_SECRET>
+JWT_EXPIRES_IN=1d
+
+# Cấu hình Mạng & Hostname Nội Bộ / Tên Miền HTTPS
+PORT=3001
+FRONTEND_URL=https://smartdorm.ktx.edu.vn
+ML_SERVICE_URL=http://ml-service:8000
+MQTT_BROKER_URL=mqtt://mosquitto:1883
+NODE_ENV=production
 ```
 
 ---

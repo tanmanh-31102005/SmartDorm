@@ -17,7 +17,7 @@
 | 02 | [02_PHAN_CUNG_ESP32.md](file:///d:/DACNTT2/SmartDorm_SourceCode/docs/smartdorm_docs/02_PHAN_CUNG_ESP32.md) | Firmware, GPIO, RFID, Wokwi, Simulator | 11 KB |
 | 03 | [03_BACKEND_NESTJS.md](file:///d:/DACNTT2/SmartDorm_SourceCode/docs/smartdorm_docs/03_BACKEND_NESTJS.md) | API endpoints, modules, WebSocket events | 12 KB |
 | 04 | [04_DATABASE_SCHEMA.md](file:///d:/DACNTT2/SmartDorm_SourceCode/docs/smartdorm_docs/04_DATABASE_SCHEMA.md) | Prisma schema đầy đủ, InfluxDB, indexes | 16 KB |
-| 05 | [05_ML_SERVICE.md](file:///d:/DACNTT2/SmartDorm_SourceCode/docs/smartdorm_docs/05_ML_SERVICE.md) | Prophet/LSTM/Baseline, Isolation Forest, MLOps | 16 KB |
+| 05 | [05_ML_SERVICE.md](file:///d:/DACNTT2/SmartDorm_SourceCode/docs/smartdorm_docs/05_ML_SERVICE.md) | Champion GBM (Gradient Boosting), Isolation Forest, MLOps | 16 KB |
 | 06 | [06_FRONTEND_NEXTJS.md](file:///d:/DACNTT2/SmartDorm_SourceCode/docs/smartdorm_docs/06_FRONTEND_NEXTJS.md) | Routes, components, AI Intelligence Center | 14 KB |
 | 07 | [07_HUONG_DAN_CAI_DAT.md](file:///d:/DACNTT2/SmartDorm_SourceCode/docs/smartdorm_docs/07_HUONG_DAN_CAI_DAT.md) | Docker setup, dev setup, troubleshooting | 10 KB |
 | 08 | [08_API_REFERENCE.md](file:///d:/DACNTT2/SmartDorm_SourceCode/docs/smartdorm_docs/08_API_REFERENCE.md) | Tất cả REST endpoints + WebSocket events | 11 KB |

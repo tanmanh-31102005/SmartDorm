@@ -12,6 +12,15 @@ export class AnalyticsController {
   @ApiOperation({ summary: 'Tổng quan Dashboard' })
   getDashboard() { return this.analyticsService.getDashboardSummary(); }
 
+  @Get('bi-summary')
+  @ApiOperation({ summary: 'Dữ liệu BI & Kho Phân Tích Lớn (IoT Analytics Realtime)' })
+  getBiSummary(
+    @Query('building') building?: string,
+    @Query('period') period?: string,
+  ) {
+    return this.analyticsService.getBiSummary(building, period);
+  }
+
   @Get('temperature/:roomId')
   @ApiOperation({ summary: 'Biểu đồ nhiệt độ theo phòng' })
   getTemperature(@Param('roomId') roomId: string, @Query('hours') hours?: string) {
@@ -36,28 +45,94 @@ export class AnalyticsController {
 
   // ==================== EXPORT DATA ENDPOINTS ====================
 
+  @Get('export/environment')
+  @ApiOperation({ summary: 'Xuất dữ liệu báo cáo vi khí hậu & môi trường phòng' })
+  exportEnvironment(
+    @Query('building') building?: string,
+    @Query('days') days?: string,
+    @Query('period') period?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.analyticsService.exportEnvironmentData(
+      building,
+      days ? parseInt(days) : undefined,
+      period,
+      startDate,
+      endDate,
+    );
+  }
+
   @Get('export/energy')
-  @ApiOperation({ summary: 'Xuất dữ liệu báo cáo điện năng' })
-  exportEnergy(@Query('building') building?: string, @Query('days') days?: string) {
-    return this.analyticsService.exportEnergyData(building, days ? parseInt(days) : 30);
+  @ApiOperation({ summary: 'Xuất dữ liệu báo cáo điện năng (tương thích ngược vi khí hậu)' })
+  exportEnergy(
+    @Query('building') building?: string,
+    @Query('days') days?: string,
+    @Query('period') period?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.analyticsService.exportEnvironmentData(
+      building,
+      days ? parseInt(days) : undefined,
+      period,
+      startDate,
+      endDate,
+    );
   }
 
   @Get('export/security')
   @ApiOperation({ summary: 'Xuất dữ liệu kiểm soát an ninh RFID' })
-  exportSecurity(@Query('days') days?: string) {
-    return this.analyticsService.exportSecurityData(days ? parseInt(days) : 7);
+  exportSecurity(
+    @Query('building') building?: string,
+    @Query('days') days?: string,
+    @Query('period') period?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.analyticsService.exportSecurityData(
+      building,
+      days ? parseInt(days) : undefined,
+      period,
+      startDate,
+      endDate,
+    );
   }
 
   @Get('export/incidents')
   @ApiOperation({ summary: 'Xuất dữ liệu sự cố & ứng phó khẩn cấp' })
-  exportIncidents() {
-    return this.analyticsService.exportIncidentData();
+  exportIncidents(
+    @Query('building') building?: string,
+    @Query('days') days?: string,
+    @Query('period') period?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.analyticsService.exportIncidentData(
+      building,
+      days ? parseInt(days) : undefined,
+      period,
+      startDate,
+      endDate,
+    );
   }
 
   @Get('export/devices')
   @ApiOperation({ summary: 'Xuất dữ liệu sức khỏe thiết bị IoT' })
-  exportDevices() {
-    return this.analyticsService.exportDeviceHealthData();
+  exportDevices(
+    @Query('building') building?: string,
+    @Query('days') days?: string,
+    @Query('period') period?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.analyticsService.exportDeviceHealthData(
+      building,
+      days ? parseInt(days) : undefined,
+      period,
+      startDate,
+      endDate,
+    );
   }
 
   @Get('monthly-bill/:roomNumber')

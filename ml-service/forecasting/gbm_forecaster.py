@@ -24,7 +24,6 @@ from app.schemas.forecast import (
     ForecastSummary,
     ForecastResponse,
 )
-from forecasting.baseline import BaselineForecaster
 
 logger = logging.getLogger("ml-service.forecasting.gbm")
 
@@ -126,8 +125,10 @@ def _build_inference_features(future_timestamps: List[datetime],
         else:
             # Ước tính từ diurnal profile
             h_24_ago = (h) % 24
-            baseline_calc = BaselineForecaster()
-            X[i, 14] = prev_power * baseline_calc._get_hourly_diurnal_factor(h_24_ago, dow)
+            l_prob = HOURLY_LIGHT_PROB.get(h_24_ago, 0.4)
+            f_prob = HOURLY_FAN_PROB.get(h_24_ago, 0.4)
+            diurnal_factor = 0.5 + 0.3 * l_prob + 0.2 * f_prob
+            X[i, 14] = prev_power * diurnal_factor
 
         # Cập nhật prev_power (sẽ được overwrite sau khi predict)
         prev_power = prev_power  # Placeholder — sẽ update sau predict
@@ -153,8 +154,14 @@ class GBMForecaster:
         self.model = None
         self.scaler = None
         self.is_fitted = False
-        self.fallback_engine = BaselineForecaster()
         self._load()
+
+    def _get_diurnal_factor(self, hour: int) -> float:
+        """Returns normalized diurnal activity factor for a given hour of day."""
+        h = hour % 24
+        light = HOURLY_LIGHT_PROB.get(h, 0.2)
+        fan = HOURLY_FAN_PROB.get(h, 0.4)
+        return float((light + fan) / 2.0)
 
     def _load(self):
         """Load GBM model và StandardScaler từ disk."""
@@ -169,21 +176,17 @@ class GBMForecaster:
                 self.is_fitted = self.model is not None
                 logger.info("GBMForecaster loaded from %s (fitted=%s)", self.model_path, self.is_fitted)
             except Exception as e:
-                logger.warning("Could not load GBM artifact: %s — will use baseline fallback", e)
+                logger.warning("Could not load GBM artifact: %s — will use internal profile fallback", e)
                 self.is_fitted = False
         else:
-            logger.warning("GBM model file not found at %s — using baseline fallback", self.model_path)
+            logger.warning("GBM model file not found at %s — using internal profile fallback", self.model_path)
             self.is_fitted = False
 
     def predict(self, request: ForecastRequest, now: Optional[datetime] = None) -> ForecastResponse:
         """
-        Dự báo năng lượng cho horizon_hours giờ tiếp theo.
-        Trả về ForecastResponse cùng schema với Prophet/Baseline — backward compatible.
+        Dự báo vi khí hậu / telemetry cho horizon_hours giờ tiếp theo.
+        Sử dụng Model Champion Gradient Boosting (hoặc profile-based heuristic nếu chưa train).
         """
-        if not self.is_fitted:
-            logger.warning("GBM not fitted — delegating to BaselineForecaster")
-            return self.fallback_engine.predict(request, now)
-
         now = now or datetime.now(timezone.utc)
         horizon = request.horizonHours or 24
 
@@ -205,15 +208,22 @@ class GBMForecaster:
         for i in range(horizon):
             X[i, 13] = prev_power  # Cập nhật lag_1h với giá trị mới nhất
 
-            if self.scaler is not None:
-                x_scaled = self.scaler.transform(X[i:i+1])
+            if self.is_fitted and self.model is not None:
+                if self.scaler is not None:
+                    x_scaled = self.scaler.transform(X[i:i+1])
+                else:
+                    x_scaled = X[i:i+1]
+                pred = float(self.model.predict(x_scaled)[0])
             else:
-                x_scaled = X[i:i+1]
+                # Heuristic profile prediction based on diurnal dorm patterns
+                hour = future_timestamps[i].hour
+                l_prob = HOURLY_LIGHT_PROB.get(hour, 0.3)
+                f_prob = HOURLY_FAN_PROB.get(hour, 0.3)
+                pred = 20.0 + l_prob * 40.0 + f_prob * 35.0
 
-            pred = float(self.model.predict(x_scaled)[0])
-            pred = max(5.0, pred)   # Công suất tối thiểu 5W
+            pred = max(5.0, pred)
             predictions[i] = pred
-            prev_power = pred  # Dùng kết quả vừa predict làm lag cho bước tiếp
+            prev_power = pred
 
         # Tính confidence interval (±8% — từ RMSE/mean ratio của model)
         ci_half = predictions * 0.08

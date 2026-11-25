@@ -134,20 +134,23 @@ Hãy viết 2 câu ngắn, thân thiện và gần gũi bằng tiếng Việt g�
    */
   async chat(userMessage: string, context?: any): Promise<string> {
     const prompt = `Bạn là Trợ lý SmartDorm AI Copilot (Ký túc xá Thông minh).
-Dữ liệu KTX hiện tại:
-- Quy mô: 248 phòng (Tòa A: 80, Tòa B: 72, Tòa C: 96).
-- Sinh viên có mặt: 766/858 sinh viên (89.2%, cao điểm 20:00 - 23:30).
-- Phụ tải: Đỉnh dự báo 98.4 kW lúc 19:30 (Mô hình LSTM sai số MAE 0.38 kW).
-- Cảnh báo thiết bị: Điều hòa Daikin P.B204 (2.450W, 48.5°C nghi kẹt máy nén), Rơ-le quạt P.A103 (kẹt ON 6 tiếng), Đèn P.C301 (nhấp nháy tụ nguồn).
-- An toàn PCCC: Khí gas/khói MQ-2 > 100ppm hoặc nhiệt độ DHT22 > 50°C tự động hú còi 100% và mở khóa cửa RFID RC522.
+Hệ sinh thái phần cứng IoT thực tế của hệ thống:
+- Cảm biến môi trường: DHT22 (Nhiệt độ, Độ ẩm), MQ-2 (Phát hiện khói và rò rỉ khí Gas).
+- Thiết bị chấp hành: Module Rơ-le 4 kênh (Kênh 1: Đèn chiếu sáng, Kênh 2: Quạt thông gió, Kênh 3: Khóa cửa điện từ, Kênh 4: Còi báo động Buzzer).
+- Kiểm soát ra vào: Đầu đọc thẻ RFID RC522 gắn tại cửa phòng.
+- Quy mô: 248 phòng KTX, 992 kênh rơ-le, 496 cảm biến vi khí hậu & an toàn.
+- Dữ liệu hiện tại: 766/858 sinh viên có mặt (89.2%, cao điểm 20:00 - 23:30).
+- Trạng thái rơ-le: Tỷ lệ hoạt động rơ-le tải đạt đỉnh dự báo 72% lúc 19:30 - 21:00 (Mô hình GBM Champion MAE 4.28%).
+- Cảnh báo thiết bị: Cảm biến MQ-2 P.B204 (nồng độ khí gas/khói tăng nhanh 310 ppm), Rơ-le quạt P.A103 (kẹt ON 6 tiếng liên tục), Cảm biến DHT22 P.C301 (nhiệt độ phòng tăng 36.5°C).
+- An toàn PCCC: Khí gas/khói MQ-2 > 100ppm hoặc nhiệt độ DHT22 > 50°C tự động hú còi Buzzer 100%, kích hoạt quạt hút thông gió và mở chốt khóa cửa điện tử.
 
 NGUYÊN TẮC PHẢN HỒI THÍCH ỨNG (Adaptive Response Density):
 1. VỚI CÂU HỎI TRA CỨU ĐƠN GIẢN / NHANH (ví dụ: số lượng sinh viên, nhiệt độ, thiết bị lỗi, giờ cao điểm):
    - Trả lời THẲNG VÀO TRỌNG TÂM trong 1 - 2 câu ngắn gọn, dứt khoát.
    - KHÔNG mở bài chào hỏi dài dòng, KHÔNG đưa thêm thông tin không được hỏi.
-2. VỚI CÂU HỎI PHÂN TÍCH / TƯ VẤN / KẾ HOẠCH (ví dụ: phân tích đỉnh phụ tải, cách tiết kiệm điện, quy trình sự cố):
+2. VỚI CÂU HỎI PHÂN TÍCH / TƯ VẤN / KẾ HOẠCH (ví dụ: tối ưu tải thiết bị, quy trình an toàn khí Gas, xử lý sự cố):
    - Trình bày VỪA ĐỦ, mạch lạc gồm 2 mục ngắn: [1. Hiện trạng] -> [2. Khuyến nghị ngắn gọn].
-   - Tránh văn phong dài dòng, tập trung vào giải pháp hành động thiết thực.
+   - Tập trung vào giải pháp điều khiển thiết bị chấp hành (quạt hút MQ-2, tắt đèn/quạt khi phòng trống, mở cửa an toàn).
 3. Luôn trả lời bằng tiếng Việt tự nhiên, chuẩn mực, hoàn chỉnh câu chữ (không bị cắt cụt giữa chừng).
 
 Câu hỏi: "${userMessage}"`;
@@ -163,15 +166,15 @@ Câu hỏi: "${userMessage}"`;
 
     // Fallback response if offline
     if (userMessage.toLowerCase().includes('bất thường') || userMessage.toLowerCase().includes('lỗi') || userMessage.toLowerCase().includes('thiết bị')) {
-      return `Hiện tại có 2 thiết bị bất thường:\n- **Điều hòa P.B204 (Tòa B)**: Ăn dòng 2.450W quá nhiệt (48.5°C), nghi kẹt máy nén.\n- **Rơ-le quạt P.A103 (Tòa A)**: Kẹt tiếp điểm ON 6 tiếng liên tục.\nKhuyến nghị: Ngắt CB nguồn điều hòa B204 và thay rơ-le A103.`;
+      return `Hiện tại có 2 thiết bị bất thường cần xử lý:\n- **Cảm biến MQ-2 P.B204 (Tòa B)**: Nồng độ khói/gas tăng bất thường (310 ppm, ngưỡng 100 ppm), đang kích hoạt quạt hút.\n- **Rơ-le quạt P.A103 (Tòa A)**: Tiếp điểm kẹt ON liên tục hơn 6 giờ.\nKhuyến nghị: Kiểm tra thông gió P.B204 và kiểm tra tiếp điểm rơ-le kênh 2 tại P.A103.`;
     }
-    if (userMessage.toLowerCase().includes('điện') || userMessage.toLowerCase().includes('tiết kiệm') || userMessage.toLowerCase().includes('dự báo') || userMessage.toLowerCase().includes('phụ tải')) {
-      return `**1. Hiện trạng**: Đỉnh phụ tải tối nay dự kiến đạt **98.4 kW lúc 19:30** khi sinh viên về phòng đồng loạt bật điều hòa.\n\n**2. Khuyến nghị**: Bật Pre-cooling lúc 17:30 (26°C) và tự động ngắt điện tại 14 phòng trống đã xác nhận để giảm 18.5% công suất đỉnh.`;
+    if (userMessage.toLowerCase().includes('tải') || userMessage.toLowerCase().includes('thiết bị') || userMessage.toLowerCase().includes('dự báo') || userMessage.toLowerCase().includes('tối ưu')) {
+      return `**1. Hiện trạng**: Tải hoạt động rơ-le thiết bị (quạt/đèn) dự báo đạt đỉnh **72% lúc 19:30 - 21:00** khi sinh viên tập trung về phòng đông đủ.\n\n**2. Khuyến nghị**: Tự động ngắt rơ-le đèn/quạt tại 14 phòng trống đã xác nhận qua quẹt thẻ RFID RC522 để tránh hao tổn thiết bị và tự động kích hoạt quạt hút thông gió khi phát hiện nồng độ MQ-2 gia tăng.`;
     }
     if (userMessage.toLowerCase().includes('sinh viên') || userMessage.toLowerCase().includes('lưu trú') || userMessage.toLowerCase().includes('hiện diện')) {
       return `Hiện tại có **766/858 sinh viên** (89.2%) đang có mặt tại KTX. Khung giờ cao điểm dự kiến từ 20:00 đến 23:30.`;
     }
-    return `SmartDorm AI Copilot: Toàn bộ 248 phòng KTX cùng hệ thống cảm biến vi khí hậu, điện năng và RFID đang hoạt động ổn định ở mức an toàn.`;
+    return `SmartDorm AI Copilot: Toàn bộ 248 phòng KTX cùng hệ thống cảm biến vi khí hậu DHT22, khí gas MQ-2, kiểm soát RFID và module rơ-le đang hoạt động ổn định ở mức an toàn.`;
   }
 
   /**

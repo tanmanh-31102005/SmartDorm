@@ -102,7 +102,7 @@
 - **Địa chỉ URL:** `http://localhost:3000/dashboard/intelligence/models`
 - **Các bước:**
   1. Nhấp vào **Trung Tâm AI (Intelligence)** -> **Mô Hình ML (Models)**.
-  2. Xem bảng danh sách các mô hình: `energy-prophet`, `device-anomaly-iforest`, `occupancy-proxy-classifier` kèm chỉ số MAE, RMSE, F1-Score, Inference Latency.
+  2. Xem bảng danh sách các mô hình: `energy-gbm`, `device-anomaly-iforest`, `occupancy-proxy-classifier` kèm chỉ số MAE, RMSE, F1-Score, Inference Latency.
   3. Chụp lại bảng quản trị mô hình AI.
 
 #### 📷 Ảnh 13: `admin/admin_13_ai_recommendations.png`

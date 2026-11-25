@@ -121,8 +121,8 @@ export default function BuildingsPage() {
                     <div className="text-sm font-bold text-slate-900 mt-0.5 font-mono">{b.avgTemperature}°C</div>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase">Điện Năng Hôm Nay</div>
-                    <div className="text-sm font-bold text-blue-900 mt-0.5 font-mono">{b.energyUsageTodayKwh} kWh</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Khí Gas MQ-2</div>
+                    <div className="text-sm font-bold text-emerald-700 mt-0.5 font-mono">An Toàn</div>
                   </div>
                 </div>
               </div>

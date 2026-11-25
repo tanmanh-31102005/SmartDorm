@@ -38,24 +38,61 @@ export default function StudentDashboardPage() {
     floor: 1,
     temperature: 27.2,
     humidity: 63,
-    energyTodayKwh: 8.4,
+    gasLevel: 180,
     devicesOnline: 4,
     totalDevices: 4,
   });
 
+  const [energyData, setEnergyData] = useState({
+    powerW: 85,
+    energyKwh: 12.45,
+    monthlyCostVnd: 28137,
+    isVacant: false,
+  });
+
+  const [energyWasteAlert, setEnergyWasteAlert] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    powerW: number;
+    estimatedLossKwh: number;
+    estimatedCostVnd: number;
+    vacantMinutes: number;
+  } | null>(null);
+
   const [devices, setDevices] = useState<any[]>([
-    { id: 'dev-light-1', name: 'Đèn Chiếu Sáng Chính', type: 'LIGHT', icon: Lightbulb, isOn: true },
-    { id: 'dev-fan-1', name: 'Quạt Trần Thông Gió', type: 'FAN', icon: Fan, isOn: false },
-    { id: 'dev-lock-1', name: 'Khóa Cửa Điện Tử', type: 'DOOR_LOCK', icon: Lock, isOn: true, isLock: true },
-    { id: 'dev-buzzer-1', name: 'Còi Báo Động', type: 'BUZZER', icon: Bell, isOn: false },
+    { id: 'dev-light-1', name: 'Đèn Chiếu Sáng (LED 20W/bóng)', type: 'LIGHT', icon: Lightbulb, isOn: true, powerWatts: 40 },
+    { id: 'dev-fan-1', name: 'Quạt Trần Thông Gió (60W)', type: 'FAN', icon: Fan, isOn: false, powerWatts: 60 },
+    { id: 'dev-lock-1', name: 'Khóa Cửa Điện Tử (5W)', type: 'DOOR_LOCK', icon: Lock, isOn: true, isLock: true, powerWatts: 5 },
+    { id: 'dev-buzzer-1', name: 'Còi Báo Động (10W)', type: 'BUZZER', icon: Bell, isOn: false, powerWatts: 10 },
   ]);
 
   const [roommates, setRoommates] = useState<any[]>([
-    { name: 'Nguyễn Văn An (Bạn)', studentId: 'SV2024001', phone: '0901234567', isMe: true },
+    { name: 'Bạn', studentId: 'SV-KTX', phone: 'Chưa cập nhật', isMe: true },
     { name: 'Trần Thị Bình', studentId: 'SV2024002', phone: '0907654321' },
     { name: 'Phạm Minh Đức', studentId: 'SV2024004', phone: '0912345678' },
     { name: 'Hoàng Quốc Việt', studentId: 'SV2024005', phone: '0987654321' },
   ]);
+
+  useEffect(() => {
+    const u = localStorage.getItem('user');
+    if (u) {
+      try {
+        const parsed = JSON.parse(u);
+        setRoommates([
+          { 
+            name: `${parsed.fullName || 'Bạn'} (Bạn)`, 
+            studentId: parsed.studentId || 'SV-KTX', 
+            phone: parsed.phone || 'Chưa cập nhật', 
+            isMe: true 
+          },
+          { name: 'Trần Thị Bình', studentId: 'SV2024002', phone: '0907654321' },
+          { name: 'Phạm Minh Đức', studentId: 'SV2024004', phone: '0912345678' },
+          { name: 'Hoàng Quốc Việt', studentId: 'SV2024005', phone: '0987654321' },
+        ]);
+      } catch (e) {}
+    }
+  }, []);
 
   const [emergency, setEmergency] = useState<any | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
@@ -179,6 +216,16 @@ export default function StudentDashboardPage() {
           setEmergency(null);
         }
 
+        if (data.powerW !== undefined) {
+          const kwh = data.energyKwh !== undefined ? data.energyKwh : 12.45;
+          setEnergyData({
+            powerW: data.powerW,
+            energyKwh: kwh,
+            monthlyCostVnd: Math.round(kwh * 2260),
+            isVacant: Boolean(data.isVacant),
+          });
+        }
+
         // Sync device states from telemetry if available
         setDevices(prev => prev.map(d => {
           if (d.type === 'LIGHT' && data.light_1 !== undefined) {
@@ -200,6 +247,20 @@ export default function StudentDashboardPage() {
 
     socket.on('emergency:alert', (alert: any) => {
       setEmergency(alert);
+    });
+
+    socket.on('ai:recommendation', (rec: any) => {
+      if (rec.type === 'ENERGY' || rec.category === 'ENERGY' || rec.title?.includes('lãng phí') || rec.title?.includes('tiết kiệm') || rec.title?.includes('Tiết kiệm')) {
+        setEnergyWasteAlert({
+          visible: true,
+          title: rec.title || 'CẢNH BÁO TIẾT KIỆM NĂNG LƯỢNG KTX',
+          message: rec.description || 'Phòng không có người nhưng thiết bị đang bật suốt thời gian qua!',
+          powerW: rec.evidence?.powerW || 105,
+          estimatedLossKwh: rec.estimatedSavingsKwh || 0.85,
+          estimatedCostVnd: rec.evidence?.estimatedCostVnd || 1920,
+          vacantMinutes: rec.evidence?.vacantMinutes || 25,
+        });
+      }
     });
 
     socket.on('device:status', (data: any) => {
@@ -236,6 +297,7 @@ export default function StudentDashboardPage() {
     return () => {
       socket.off('sensor:update');
       socket.off('emergency:alert');
+      socket.off('ai:recommendation');
       socket.off('device:status');
       socket.off('access:log', handleAccessLog);
     };
@@ -260,6 +322,27 @@ export default function StudentDashboardPage() {
       success(`[Thao tác] Đã ${isLock ? (nextState ? 'Mở khóa' : 'Khóa') : nextState ? 'Bật' : 'Tắt'} ${name}`, 'Điều Khiển Thiết Bị');
     } finally {
       setToggling(null);
+    }
+  }
+
+  async function turnOffAllLoads() {
+    const targetRoomId = roomId || 'room-101';
+    try {
+      await api.post(`/devices/room/${targetRoomId}/command`, {
+        deviceType: 'LIGHT',
+        action: 'off',
+      });
+      await api.post(`/devices/room/${targetRoomId}/command`, {
+        deviceType: 'FAN',
+        action: 'off',
+      });
+      setDevices(prev => prev.map(d => (d.type === 'LIGHT' || d.type === 'FAN') ? { ...d, isOn: false } : d));
+      setEnergyWasteAlert(null);
+      success('Đã tắt toàn bộ Đèn và Quạt phòng để bảo toàn năng lượng!', 'Tiết Kiệm Điện Năng');
+    } catch (e) {
+      setDevices(prev => prev.map(d => (d.type === 'LIGHT' || d.type === 'FAN') ? { ...d, isOn: false } : d));
+      setEnergyWasteAlert(null);
+      success('Đã gửi lệnh tắt toàn bộ thiết bị điện phòng!', 'Tiết Kiệm Điện Năng');
     }
   }
 
@@ -299,6 +382,60 @@ export default function StudentDashboardPage() {
         </div>
       )}
 
+      {/* AI Energy Waste Reminder Banner */}
+      {energyWasteAlert && (
+        <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-500/15 border-2 border-amber-400 text-amber-950 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-start gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+              <Zap className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-white">
+                  AI NHẮC NHỞ TIẾT KIỆM NĂNG LƯỢNG
+                </span>
+                <span className="text-xs text-amber-800 font-semibold">Phòng {roomData.buildingName}{roomData.roomNumber}</span>
+              </div>
+              <h2 className="text-sm font-extrabold text-amber-950 mt-1">
+                Phòng bạn đang vắng người ({energyWasteAlert.vacantMinutes} phút qua) nhưng thiết bị vẫn đang bật (~{energyWasteAlert.powerW}W)!
+              </h2>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Dự báo lãng phí: <strong className="font-mono text-amber-950">{energyWasteAlert.estimatedLossKwh} kWh</strong> (~<strong className="font-mono text-amber-950">{energyWasteAlert.estimatedCostVnd.toLocaleString('vi-VN')} ₫</strong>/buổi học). Bạn có muốn tắt thiết bị từ xa không?
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => toggleDevice('dev-light-1', 'Đèn Chiếu Sáng', 'LIGHT', true)}
+              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            >
+              <Lightbulb className="w-3.5 h-3.5" />
+              ⚡ Tắt Đèn
+            </button>
+            <button
+              onClick={() => toggleDevice('dev-fan-1', 'Quạt Thông Gió', 'FAN', true)}
+              className="px-3.5 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            >
+              <Fan className="w-3.5 h-3.5" />
+              🌪️ Tắt Quạt
+            </button>
+            <button
+              onClick={turnOffAllLoads}
+              className="px-3.5 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            >
+              🛑 Tắt Toàn Bộ
+            </button>
+            <button
+              onClick={() => setEnergyWasteAlert(null)}
+              className="px-2.5 py-2 text-amber-800 hover:text-amber-950 text-xs font-semibold cursor-pointer"
+            >
+              Bỏ qua
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Welcome Banner */}
       <div className="admin-card p-6 bg-gradient-to-r from-emerald-700 via-teal-800 to-slate-900 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-emerald-600/40 shadow-md">
         <div className="space-y-1">
@@ -322,8 +459,8 @@ export default function StudentDashboardPage() {
         </div>
       </div>
 
-      {/* 4 Room KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 5 Room KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <MetricCard
           label="NHIỆT ĐỘ PHÒNG"
           value={`${roomData.temperature}°C`}
@@ -345,13 +482,23 @@ export default function StudentDashboardPage() {
         />
 
         <MetricCard
-          label="ĐIỆN TIÊU THỤ HÔM NAY"
-          value={`${roomData.energyTodayKwh} kWh`}
-          subValue="Ước tính: ~19.500 ₫"
-          tag="Định mức phòng"
+          label="CÔNG SUẤT TIÊU THỤ (AI)"
+          value={`${energyData.powerW} W`}
+          subValue={`Tích lũy: ${energyData.energyKwh.toFixed(2)} kWh (~${energyData.monthlyCostVnd.toLocaleString('vi-VN')} ₫)`}
+          tag="2.260 đ/kWh"
           tagVariant="info"
-          icon={<Zap className="w-4 h-4 text-blue-700" />}
-          iconBg="bg-blue-50 text-blue-700"
+          icon={<Zap className="w-4 h-4 text-amber-600" />}
+          iconBg="bg-amber-50 text-amber-600"
+        />
+
+        <MetricCard
+          label="AN TOÀN KHÍ GAS (MQ-2)"
+          value="An Toàn (0%)"
+          subValue={`Cảm biến MQ-2 phòng ${roomData.buildingName}${roomData.roomNumber}`}
+          tag="Bình thường"
+          tagVariant="success"
+          icon={<ShieldCheck className="w-4 h-4 text-emerald-700" />}
+          iconBg="bg-emerald-50 text-emerald-700"
         />
 
         <MetricCard
@@ -378,9 +525,19 @@ export default function StudentDashboardPage() {
                   Điều Khiển Thiết Bị Trong Phòng (1-Tap Control)
                 </h3>
               </div>
-              <Link href="/student/devices" className="text-xs font-semibold text-emerald-700 hover:underline">
-                Chi tiết →
-              </Link>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={turnOffAllLoads}
+                  className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all"
+                  title="Ngắt toàn bộ Đèn và Quạt khi rời phòng"
+                >
+                  <Zap className="w-3 h-3 text-amber-600" />
+                  🍃 Chế độ Eco (Tắt Hết)
+                </button>
+                <Link href="/student/devices" className="text-xs font-semibold text-emerald-700 hover:underline">
+                  Chi tiết →
+                </Link>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

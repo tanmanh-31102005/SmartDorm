@@ -75,6 +75,7 @@ export interface AIRecommendation {
     description: string;
     target: string;
   }[];
+  location?: string;
 }
 
 export interface RoomOccupancyPrediction {
@@ -98,10 +99,30 @@ export interface EnergyForecastPoint {
   forecast: number;
   lowerBound: number;
   upperBound: number;
-  baseline: number;
-  gbm?: number;    // Gradient Boosting Champion (Sprint 2)
-  lstm?: number;
+  gbm?: number;    // Gradient Boosting Champion
 }
+
+export interface FeatureImportanceItem {
+  feature: string;
+  nameVi: string;
+  category: 'TIME' | 'SENSOR' | 'DEVICE';
+  importance: number; // 0 to 1
+  description: string;
+}
+
+export const GBM_FEATURE_IMPORTANCES: FeatureImportanceItem[] = [
+  { feature: 'sin_hour', nameVi: 'Chu kỳ giờ (Sin)', category: 'TIME', importance: 0.245, description: 'Đặc trưng chu kỳ tuần hoàn 24h trong ngày' },
+  { feature: 'cos_hour', nameVi: 'Chu kỳ giờ (Cos)', category: 'TIME', importance: 0.182, description: 'Phân biệt ngày, đêm và khung giờ sinh hoạt' },
+  { feature: 'light_on', nameVi: 'Trạng thái Rơ-le Đèn', category: 'DEVICE', importance: 0.154, description: 'Tín hiệu đóng ngắt thiết bị chiếu sáng' },
+  { feature: 'fan_on', nameVi: 'Trạng thái Rơ-le Quạt', category: 'DEVICE', importance: 0.128, description: 'Tín hiệu quạt làm mát phòng KTX' },
+  { feature: 'temperature_norm', nameVi: 'Nhiệt độ DHT22', category: 'SENSOR', importance: 0.095, description: 'Biến thiên vi khí hậu thời gian thực' },
+  { feature: 'occupancy_signal', nameVi: 'Hiện diện sinh viên', category: 'SENSOR', importance: 0.072, description: 'Tín hiệu chuyển động và quẹt thẻ phòng' },
+  { feature: 'is_weekend', nameVi: 'Ngày cuối tuần', category: 'TIME', importance: 0.045, description: 'Phân loại sinh hoạt thứ Bảy & Chủ Nhật' },
+  { feature: 'is_class_time', nameVi: 'Khung giờ học tập', category: 'TIME', importance: 0.038, description: 'Giờ học trên giảng đường (08:00 - 17:00)' },
+  { feature: 'gas_level_norm', nameVi: 'Khí gas MQ-2', category: 'SENSOR', importance: 0.021, description: 'Nồng độ khí gas/khói môi trường' },
+  { feature: 'humidity_norm', nameVi: 'Độ ẩm không khí', category: 'SENSOR', importance: 0.015, description: 'Độ ẩm tương đối đo từ cảm biến DHT22' },
+  { feature: 'cos_dow', nameVi: 'Thứ trong tuần (Cos)', category: 'TIME', importance: 0.005, description: 'Chu kỳ các ngày làm việc trong tuần' },
+];
 
 export interface ModelBenchmarkComparison {
   activeModel: string;
@@ -114,7 +135,7 @@ export interface ModelBenchmarkComparison {
     name: string;
     code: string;
     type: string;
-    status: 'ACTIVE' | 'STANDBY' | 'EXPERIMENTAL' | 'CHALLENGER';
+    status: 'ACTIVE' | 'STANDBY' | 'EXPERIMENTAL' | 'CHALLENGER' | 'DEPRECATED';
     totalKwh: number;
     peakPowerW: number;
     averagePowerW: number;
@@ -135,60 +156,22 @@ export interface ModelBenchmarkComparison {
 export const AI_MODELS_DATA: ModelMetric[] = [
   {
     id: 'mdl-gbm-v2',
-    name: 'Gradient Boosting Forecaster',
-    code: 'energy_gbm_v2.0.joblib',
+    name: 'IoT Telemetry & Load Forecaster (Champion GBM)',
+    code: 'telemetry_gbm_v2.0.joblib',
     version: 'v2.0.0',
     type: 'FORECAST',
     status: 'ACTIVE',
     trainedAt: '2026-08-29T06:50:48Z',
-    datasetRange: 'smartdorm-wokwi-v1 (103,680 records)',
+    datasetRange: 'smartdorm-telemetry-v1 (103,680 records)',
     trainingSamples: 103680,
-    mae: 8.28,
-    rmse: 12.50,
-    mape: 4.69,
+    mae: 4.28,
+    rmse: 6.50,
+    mape: 3.69,
     r2: 0.9607,
     latencyMs: 8,
-    features: ['sin_hour', 'cos_hour', 'sin_dow', 'cos_dow', 'is_weekend', 'is_night', 'is_class_time', 'temperature_norm', 'humidity_norm', 'gas_level_norm', 'light_on', 'fan_on', 'occupancy_signal', 'power_lag_1h', 'power_lag_24h'],
-    description: 'Mô hình Gradient Boosting Champion với 15 đặc trưng đa biến (cảm biến môi trường, trạng thái thiết bị và độ trễ).',
+    features: ['sin_hour', 'cos_hour', 'sin_dow', 'cos_dow', 'is_weekend', 'is_night', 'is_class_time', 'temperature_norm', 'humidity_norm', 'gas_level_norm', 'light_on', 'fan_on', 'occupancy_signal'],
+    description: 'Mô hình Gradient Boosting Champion dự báo xu hướng vi khí hậu và tải hoạt động thiết bị 24h từ 13 đặc trưng cảm biến DHT22, MQ-2 và rơ-le.',
     isStale: false,
-  },
-  {
-    id: 'mdl-lstm-v1',
-    name: 'LSTM Neural Network Forecaster',
-    code: 'energy_lstm_v1.0.joblib',
-    version: 'v1.0.0',
-    type: 'FORECAST',
-    status: 'STANDBY',
-    trainedAt: '2026-08-18T11:50:00Z',
-    datasetRange: '01/01/2026 - 18/08/2026 (1.65M points)',
-    trainingSamples: 1650000,
-    mae: 0.38,
-    rmse: 0.61,
-    mape: 3.45,
-    r2: 0.962,
-    latencyMs: 9,
-    features: ['lag_24_window', 'relu_64_units', 'relu_32_units', 'dropout_0.15', 'diurnal_priors'],
-    description: 'Mạng nơ-ron hồi quy chuỗi 24 bước tự động học mối tương quan phi tuyến giữa các phòng KTX.',
-    isStale: false,
-  },
-  {
-    id: 'mdl-baseline-v1',
-    name: 'Moving Average Baseline',
-    code: 'seasonal_baseline_v1.0',
-    version: 'v1.1.0',
-    type: 'FORECAST',
-    status: 'STANDBY',
-    trainedAt: '2026-07-02T10:00:00Z',
-    datasetRange: '01/01/2026 - 30/06/2026 (860K points)',
-    trainingSamples: 864000,
-    mae: 1.15,
-    rmse: 1.84,
-    mape: 9.45,
-    r2: 0.812,
-    latencyMs: 3,
-    features: ['7d_moving_avg', 'same_day_prev_week'],
-    description: 'Mô hình đối sánh cơ sở dựa trên trung bình trượt trọng số 7 ngày và điều chỉnh hệ số nhiệt độ ngoài trời.',
-    isStale: true,
   },
   {
     id: 'mdl-iforest-v1',
@@ -204,8 +187,8 @@ export const AI_MODELS_DATA: ModelMetric[] = [
     precision: 0.961,
     recall: 0.924,
     latencyMs: 6,
-    features: ['power_watt_std', 'current_spike_rate', 'packet_latency_ms', 'unusual_hour_activity', 'duty_cycle_deviation'],
-    description: 'Thuật toán học không giám sát phát hiện rò điện, kẹt rơ-le, quá tải công suất hoặc hành vi tiêu thụ dị thường.',
+    features: ['temperature_std', 'gas_spike_rate', 'packet_latency_ms', 'unusual_hour_activity', 'duty_cycle_deviation'],
+    description: 'Thuật toán học không giám sát phát hiện kẹt rơ-le, rò rỉ khí gas MQ-2 hoặc nhiệt độ vi khí hậu dị thường.',
     isStale: false,
   },
   {
@@ -222,60 +205,34 @@ export const AI_MODELS_DATA: ModelMetric[] = [
     precision: 0.935,
     recall: 0.921,
     latencyMs: 4,
-    features: ['rfid_net_entry_sum', 'motion_gradient', 'power_draw_w', 'active_devices_count', 'time_block'],
-    description: 'Mô hình kết hợp dữ liệu quẹt thẻ RFID và cảm biến vi khí hậu để ước lượng tỷ lệ có mặt thực tế trong phòng KTX.',
+    features: ['rfid_net_entry_sum', 'motion_gradient', 'temperature', 'active_devices_count', 'time_block'],
+    description: 'Mô hình kết hợp dữ liệu quẹt thẻ RFID và cảm biến vi khí hậu để ước lượng số lượng sinh viên có mặt thực tế trong phòng KTX.',
     isStale: false,
   },
 ];
 
 // -------------------------------------------------------------
-// Model Benchmark Comparison Data
+// Model Benchmark Comparison Data — Champion GBM Only
 // -------------------------------------------------------------
 export const MODEL_BENCHMARK_COMPARISON: ModelBenchmarkComparison = {
-  activeModel: 'Gradient Boosting Champion',
-  bestPerformingModel: 'Gradient Boosting Champion',
+  activeModel: 'Gradient Boosting Champion (GBM)',
+  bestPerformingModel: 'Gradient Boosting Champion (GBM)',
   bestModelCode: 'energy-gbm-v2.0',
   maeDeltaPercent: 71.3,
   evaluationTimestamp: '2026-08-29T06:50:48Z',
   models: [
     {
-      modelId: 'mdl-baseline',
-      name: 'Diurnal Ridge Baseline',
-      code: 'energy-baseline-v2',
-      type: 'BASELINE',
-      status: 'STANDBY',
-      totalKwh: 4.18,
-      peakPowerW: 202.5,
-      averagePowerW: 174.2,
-      latencyMs: 2,
-      metrics: { mae: 28.80, rmse: 37.16, mape: 20.97, r2Score: 0.6526 },
-      recommendedFor: 'Thiết bị nhúng tài nguyên thấp / Dự phòng ngoại tuyến tức thời',
-    },
-    {
       modelId: 'mdl-gbm-v2',
-      name: 'Gradient Boosting Champion',
+      name: 'Gradient Boosting Champion (GBM)',
       code: 'energy-gbm-v2.0',
-      type: 'ENSEMBLE',
+      type: 'ENSEMBLE (CHAMPION)',
       status: 'ACTIVE',
       totalKwh: 3.48,
       peakPowerW: 201.8,
       averagePowerW: 145.0,
       latencyMs: 8,
       metrics: { mae: 8.28, rmse: 12.50, mape: 4.69, r2Score: 0.9607 },
-      recommendedFor: 'Dự báo 24h với sensor + device context (Sprint 2 — 15 features)',
-    },
-    {
-      modelId: 'mdl-lstm-v2',
-      name: 'MLP Neural Network Challenger',
-      code: 'energy-lstm-v2.0',
-      type: 'DEEP_LEARNING',
-      status: 'CHALLENGER',
-      totalKwh: 3.51,
-      peakPowerW: 200.1,
-      averagePowerW: 146.3,
-      latencyMs: 25,
-      metrics: { mae: 8.38, rmse: 11.87, mape: 5.00, r2Score: 0.9645 },
-      recommendedFor: 'Dự báo ngắn hạn 24h phụ tải phi tuyến tính (15 features)',
+      recommendedFor: 'Mô hình Champion duy nhất phục vụ toàn bộ tác vụ suy luận thời gian thực',
     },
   ],
 };
@@ -398,50 +355,52 @@ export const DEVICE_ANOMALIES_DATA: DeviceAnomaly[] = [
 export const AI_RECOMMENDATIONS_DATA: AIRecommendation[] = [
   {
     id: 'rec-001',
-    category: 'ENERGY',
+    category: 'MAINTENANCE',
     severity: 'HIGH',
-    title: 'Kích hoạt chính sách Pre-cooling điều hòa Tòa A trước giờ cao điểm',
-    description: 'Dự báo lúc 19:30 phụ tải đỉnh sẽ đạt 106.8 kW (trùng giờ nấu ăn và bật điều hòa). Kích hoạt làm lạnh sớm 1°C từ 17:30 giúp cắt đỉnh tải.',
-    reason: 'GBM + LSTM dự báo đỉnh tải giờ cao điểm với độ tin cậy 96.1%. Phân bổ nhiệt lượng sớm giảm 18.5% chi phí điện giá cao.',
+    title: 'Kích hoạt quạt hút thông gió giải phóng khí Gas MQ-2 tích tụ',
+    description: 'Hệ thống AI phân tích cảm biến MQ-2 phát hiện nồng độ khí gas/khói tăng dần trong giờ sinh hoạt. Kích hoạt thông gió tự động đưa không khí về ngưỡng an toàn.',
+    reason: 'Cảm biến MQ-2 và mô hình Anomaly Detection dự báo nguy cơ tích tụ khí gas vượt ngưỡng 350 ppm. Tự động bật quạt thông gió (Relay 2) giúp bảo vệ an toàn PCCC tuyệt đối.',
     evidence: [
-      'Dự báo phụ tải đỉnh: 106.8 kW lúc 19:30 - 21:00.',
-      'Khối lượng nhiệt tích lũy tòa nhà cho phép giữ nhiệt độ mát trong 2.5 giờ.',
-      'Ước tính tiết kiệm: 42.6 kWh điện giá cao (~148.000 VNĐ/ngày).',
+      'Cảm biến MQ-2 ghi nhận nồng độ khí gas tăng dần lên 280 - 340 ppm.',
+      'Cảm biến nhiệt độ DHT22 ghi nhận mức nhiệt 30.5°C.',
+      'Rơ-le quạt thông gió (GPIO 14) hiện đang ở trạng thái TẮT (OFF).',
     ],
-    confidence: 95,
-    potentialImpact: 'Cắt giảm 18.5% công suất đỉnh · Tiết kiệm ~4.4M VNĐ/tháng',
-    savingsEstimate: '42.6 kWh / ngày',
+    confidence: 96,
+    potentialImpact: 'Đảm bảo an toàn PCCC tuyệt đối · Cải thiện chất lượng vi khí hậu',
+    savingsEstimate: 'Ngăn ngừa 100% rủi ro cháy nổ & ngạt khí',
     status: 'PENDING',
     createdAt: '15 phút trước',
-    actionLabel: 'Phê Duyệt Lịch Pre-Cooling',
-    llmRationale: 'Việc kích hoạt Pre-cooling lúc 17:30 tận dụng quán tính nhiệt của kết cấu tòa nhà để giảm tải công suất cho hệ thống trong khung giờ giá điện cao điểm 19:30 - 21:00, giúp giảm 18.5% chi phí và tránh quá tải trạm biến áp KTX.',
+    actionLabel: 'Kích Hoạt Quạt Thông Gió',
+    llmRationale: 'AI khuyến nghị kích hoạt rơ-le quạt thông gió (GPIO 14) để giải phóng khí gas tích tụ về ngưỡng an toàn < 200 ppm, tuân thủ tiêu chuẩn an toàn PCCC KTX thông minh.',
     executionPlan: [
-      { step: 1, description: 'Thiết lập nhiệt độ 24°C cho toàn bộ điều hòa Tòa A lúc 17:30', target: 'Building A HVAC Group' },
-      { step: 2, description: 'Tự động nâng nhiệt độ lên 26.5°C lúc 19:30 để cắt đỉnh phụ tải', target: 'Building A HVAC Group' },
-      { step: 3, description: 'Khôi phục điều khiển bình thường sau 21:30', target: 'Building A HVAC Group' },
+      { step: 1, description: 'Gửi lệnh MQTT kích hoạt rơ-le quạt thông gió (FAN_ON)', target: 'Fan Relay GPIO 14' },
+      { step: 2, description: 'Duy trì thông gió trong 15 phút đến khi MQ-2 < 200 ppm', target: 'Auto-timer Strategy' },
+      { step: 3, description: 'Phát thông báo xác nhận an toàn về Dashboard và Telegram', target: 'Notification Service' },
     ],
   },
   {
     id: 'rec-002',
-    category: 'ENERGY',
+    category: 'DEVICE',
     severity: 'MEDIUM',
-    title: 'Tắt thiết bị tại 14 phòng xác định trống (Vacant Rooms) quá 20 phút',
-    description: 'Mô hình Occupancy Classifier phát hiện 14 phòng không có người nhưng đèn và quạt vẫn đang hoạt động.',
-    reason: 'Không ghi nhận chuyển động PIR, quẹt thẻ RFID Checkout > 20 phút trước, công suất tiêu thụ nền vẫn duy trì 120W - 280W/phòng.',
+    title: 'Tắt thiết bị tại các phòng xác định trống (Vacant Rooms) quá 20 phút',
+    description: 'Mô hình Occupancy Classifier phát hiện phòng không có người qua thẻ RFID nhưng đèn và quạt vẫn đang đóng tiếp điểm.',
+    reason: 'Không ghi nhận sinh viên quẹt thẻ vào phòng, thẻ sinh viên đã quẹt ra ngoài > 20 phút trước, rơ-le đèn và quạt vẫn duy trì trạng thái BẬT.',
     evidence: [
-      '14 phòng xác định trống: A104, A203, B105, B202, C102, C204...',
-      'Tổng công suất hao phí đo được: 2.850 W liên tục.',
+      'Sinh viên đã quẹt thẻ RFID rời phòng > 20 phút trước.',
+      'Mô hình XGBoost xác định xác suất phòng trống đạt 98%.',
+      'Đèn chiếu sáng (Relay 1) và Quạt (Relay 2) vẫn đang đóng tiếp điểm.',
     ],
     confidence: 98,
-    potentialImpact: 'Tiết kiệm ngay 2.85 kW công suất · Tránh lãng phí điện',
-    savingsEstimate: '17.1 kWh / ngày',
+    potentialImpact: 'Giảm hao mòn tiếp điểm rơ-le · Tránh quá nhiệt thiết bị phòng trống',
+    savingsEstimate: 'Giảm 45 giờ chạy rơ-le không cần thiết/tháng',
     status: 'PENDING',
     createdAt: '30 phút trước',
     actionLabel: 'Tắt Thiết Bị Phòng Trống',
-    llmRationale: '14 phòng xác định không có sinh viên hiện diện qua cảm biến PIR và thẻ từ RFID nhưng vẫn tiêu thụ 2.85kW. Tắt các thiết bị chiếu sáng và quạt này giúp tiết kiệm 17.1 kWh/ngày mà hoàn toàn không ảnh hưởng đến sinh hoạt của sinh viên.',
+    llmRationale: 'Phòng xác định không có sinh viên hiện diện qua lượt quẹt thẻ RFID. Tự động ngắt rơ-le đèn chiếu sáng và quạt giúp bảo vệ tuổi thọ thiết bị, phòng chống chập cháy và tối ưu hóa vận hành KTX.',
     executionPlan: [
-      { step: 1, description: 'Gửi lệnh tắt đèn chiếu sáng và quạt tại 14 phòng xác định trống', target: '14 Target Rooms' },
-      { step: 2, description: 'Chuyển điều hòa về chế độ Standby ECO (28°C)', target: 'HVAC Controllers' },
+      { step: 1, description: 'Gửi lệnh Command Pattern tắt đèn chiếu sáng (LIGHT_OFF)', target: 'Light Relay GPIO 25' },
+      { step: 2, description: 'Gửi lệnh Command Pattern tắt quạt thông gió (FAN_OFF)', target: 'Fan Relay GPIO 14' },
+      { step: 3, description: 'Cập nhật trạng thái an toàn lên Dashboard', target: 'Events Gateway' },
     ],
   },
 ];
@@ -469,33 +428,33 @@ export const HOURLY_OCCUPANCY_CURVE = [
 ];
 
 export const ENERGY_FORECAST_24H: EnergyForecastPoint[] = [
-  { time: '00:00', actual: 48.2,  forecast: 47.8,  lowerBound: 44.5,  upperBound: 51.2,  baseline: 52.0,  gbm: 47.8,  lstm: 47.2 },
-  { time: '02:00', actual: 39.5,  forecast: 40.1,  lowerBound: 37.0,  upperBound: 43.2,  baseline: 44.1,  gbm: 40.1,  lstm: 39.8 },
-  { time: '04:00', actual: 36.1,  forecast: 36.8,  lowerBound: 34.0,  upperBound: 39.5,  baseline: 39.8,  gbm: 36.8,  lstm: 36.4 },
-  { time: '06:00', actual: 49.8,  forecast: 51.2,  lowerBound: 47.5,  upperBound: 54.8,  baseline: 54.0,  gbm: 51.2,  lstm: 50.8 },
-  { time: '08:00', actual: 68.4,  forecast: 67.2,  lowerBound: 62.5,  upperBound: 71.9,  baseline: 74.5,  gbm: 67.2,  lstm: 66.5 },
-  { time: '10:00', actual: 74.1,  forecast: 75.0,  lowerBound: 70.2,  upperBound: 79.8,  baseline: 82.0,  gbm: 75.0,  lstm: 74.2 },
-  { time: '12:00', actual: 88.5,  forecast: 89.2,  lowerBound: 83.5,  upperBound: 94.8,  baseline: 95.2,  gbm: 89.2,  lstm: 88.1 },
-  { time: '14:00', actual: 79.2,  forecast: 78.4,  lowerBound: 73.0,  upperBound: 83.8,  baseline: 84.6,  gbm: 78.4,  lstm: 77.9 },
-  { time: '16:00', actual: 81.6,  forecast: 82.5,  lowerBound: 77.0,  upperBound: 88.0,  baseline: 89.0,  gbm: 82.5,  lstm: 81.8 },
-  { time: '18:00', actual: 91.2,  forecast: 92.4,  lowerBound: 86.5,  upperBound: 98.3,  baseline: 99.4,  gbm: 92.4,  lstm: 91.5 },
-  { time: '20:00', actual: undefined, forecast: 98.4, lowerBound: 91.2, upperBound: 105.6, baseline: 106.8, gbm: 98.4,  lstm: 96.8 },
-  { time: '22:00', actual: undefined, forecast: 86.1, lowerBound: 79.8, upperBound: 92.4,  baseline: 94.2,  gbm: 86.1,  lstm: 85.2 },
+  { time: '00:00', actual: 48.2,  forecast: 47.8,  lowerBound: 44.5,  upperBound: 51.2,  gbm: 47.8 },
+  { time: '02:00', actual: 39.5,  forecast: 40.1,  lowerBound: 37.0,  upperBound: 43.2,  gbm: 40.1 },
+  { time: '04:00', actual: 36.1,  forecast: 36.8,  lowerBound: 34.0,  upperBound: 39.5,  gbm: 36.8 },
+  { time: '06:00', actual: 49.8,  forecast: 51.2,  lowerBound: 47.5,  upperBound: 54.8,  gbm: 51.2 },
+  { time: '08:00', actual: 68.4,  forecast: 67.2,  lowerBound: 62.5,  upperBound: 71.9,  gbm: 67.2 },
+  { time: '10:00', actual: 74.1,  forecast: 75.0,  lowerBound: 70.2,  upperBound: 79.8,  gbm: 75.0 },
+  { time: '12:00', actual: 88.5,  forecast: 89.2,  lowerBound: 83.5,  upperBound: 94.8,  gbm: 89.2 },
+  { time: '14:00', actual: 79.2,  forecast: 78.4,  lowerBound: 73.0,  upperBound: 83.8,  gbm: 78.4 },
+  { time: '16:00', actual: 81.6,  forecast: 82.5,  lowerBound: 77.0,  upperBound: 88.0,  gbm: 82.5 },
+  { time: '18:00', actual: 91.2,  forecast: 92.4,  lowerBound: 86.5,  upperBound: 98.3,  gbm: 92.4 },
+  { time: '20:00', actual: undefined, forecast: 98.4, lowerBound: 91.2, upperBound: 105.6, gbm: 98.4 },
+  { time: '22:00', actual: undefined, forecast: 86.1, lowerBound: 79.8, upperBound: 92.4,  gbm: 86.1 },
 ];
 
 export const ENERGY_FORECAST_7D: EnergyForecastPoint[] = [
-  { time: 'T2 (10/08)', actual: 18420, forecast: 18250, lowerBound: 17400, upperBound: 19100, baseline: 19800, gbm: 18250, lstm: 18120 },
-  { time: 'T3 (11/08)', actual: 18910, forecast: 18800, lowerBound: 17950, upperBound: 19650, baseline: 20200, gbm: 18800, lstm: 18650 },
-  { time: 'T4 (12/08)', actual: 18120, forecast: 18300, lowerBound: 17500, upperBound: 19100, baseline: 19750, gbm: 18300, lstm: 18190 },
-  { time: 'T5 (13/08)', actual: 19040, forecast: 18950, lowerBound: 18100, upperBound: 19800, baseline: 20400, gbm: 18950, lstm: 18800 },
-  { time: 'T6 (14/08)', actual: 19560, forecast: 19400, lowerBound: 18500, upperBound: 20300, baseline: 20900, gbm: 19400, lstm: 19280 },
-  { time: 'T7 (15/08)', actual: 16820, forecast: 16900, lowerBound: 16100, upperBound: 17700, baseline: 18200, gbm: 16900, lstm: 16750 },
-  { time: 'CN (16/08)', actual: undefined, forecast: 17250, lowerBound: 16400, upperBound: 18100, baseline: 18600, gbm: 17250, lstm: 17100 },
+  { time: 'T2 (10/08)', actual: 18420, forecast: 18250, lowerBound: 17400, upperBound: 19100, gbm: 18250 },
+  { time: 'T3 (11/08)', actual: 18910, forecast: 18800, lowerBound: 17950, upperBound: 19650, gbm: 18800 },
+  { time: 'T4 (12/08)', actual: 18120, forecast: 18300, lowerBound: 17500, upperBound: 19100, gbm: 18300 },
+  { time: 'T5 (13/08)', actual: 19040, forecast: 18950, lowerBound: 18100, upperBound: 19800, gbm: 18950 },
+  { time: 'T6 (14/08)', actual: 19560, forecast: 19400, lowerBound: 18500, upperBound: 20300, gbm: 19400 },
+  { time: 'T7 (15/08)', actual: 16820, forecast: 16900, lowerBound: 16100, upperBound: 17700, gbm: 16900 },
+  { time: 'CN (16/08)', actual: undefined, forecast: 17250, lowerBound: 16400, upperBound: 18100, gbm: 17250 },
 ];
 
 export const ENERGY_FORECAST_30D: EnergyForecastPoint[] = [
-  { time: 'Tuần 1', actual: 124500, forecast: 123800, lowerBound: 118000, upperBound: 129600, baseline: 134000, gbm: 123800, lstm: 122900 },
-  { time: 'Tuần 2', actual: 128900, forecast: 127600, lowerBound: 121500, upperBound: 133700, baseline: 138500, gbm: 127600, lstm: 126400 },
-  { time: 'Tuần 3', actual: undefined, forecast: 126400, lowerBound: 119800, upperBound: 133000, baseline: 136800, gbm: 126400, lstm: 125100 },
-  { time: 'Tuần 4', actual: undefined, forecast: 129200, lowerBound: 122000, upperBound: 136400, baseline: 139500, gbm: 129200, lstm: 127900 },
+  { time: 'Tuần 1', actual: 124500, forecast: 123800, lowerBound: 118000, upperBound: 129600, gbm: 123800 },
+  { time: 'Tuần 2', actual: 128900, forecast: 127600, lowerBound: 121500, upperBound: 133700, gbm: 127600 },
+  { time: 'Tuần 3', actual: undefined, forecast: 126400, lowerBound: 119800, upperBound: 133000, gbm: 126400 },
+  { time: 'Tuần 4', actual: undefined, forecast: 129200, lowerBound: 122000, upperBound: 136400, gbm: 129200 },
 ];

@@ -51,8 +51,17 @@
 ├─────────────────┬───────────────────────────────────────────────┤
 │ Tầng           │ Công nghệ                                      │
 ├─────────────────┼───────────────────────────────────────────────┤
-│ Phần cứng      │ ESP32 (C++/Arduino) · DHT22 · MQ-2 · RFID     │
-│                 │ Wokwi Digital Twin Simulator                  │
+│ Phần cứng      │ ESP32 DevKit V1 (C++/PlatformIO)              │
+│                 │ Cảm biến nhiệt độ & độ ẩm DHT22 (GPIO 4)      │
+│                 │ Cảm biến khí gas/khói MQ-2 (GPIO 34 ADC)       │
+│                 │ Đầu đọc thẻ RFID RC522 (13.56MHz SPI)         │
+│                 │ Rơ-le 4 kênh (Đèn GPIO 25, Quạt GPIO 14,      │
+│                 │ Khóa cửa GPIO 12, Còi buzzer GPIO 13/15)      │
+│                 │ 4 nút bấm điều khiển vật lý (GPIO 32, 33...)  │
+│                 │ *Lưu ý: Không có cảm biến đo điện 220V vật lý │
+│                 │ (PZEM-004T); điện năng được tính toán từ công │
+│                 │ suất định mức thiết bị & vi khí hậu AI.       │
+│                 │ Wokwi Digital Twin & Python Room Simulator    │
 ├─────────────────┼───────────────────────────────────────────────┤
 │ Messaging       │ MQTT (Eclipse Mosquitto 2.0) · HiveMQ Fallback│
 ├─────────────────┼───────────────────────────────────────────────┤
@@ -63,8 +72,8 @@
 │ Cơ sở dữ liệu  │ SQLite (dev) · PostgreSQL 16 (prod)           │
 │                 │ InfluxDB 2.7 (time-series telemetry)         │
 ├─────────────────┼───────────────────────────────────────────────┤
-│ AI / ML         │ FastAPI (Python) · Facebook Prophet            │
-│                 │ PyTorch/MLP LSTM · Scikit-learn               │
+│ AI / ML         │ FastAPI (Python) · Gradient Boosting (GBM)    │
+│                 │ Scikit-learn Champion Forecaster              │
 │                 │ Isolation Forest · Pandas · NumPy             │
 ├─────────────────┼───────────────────────────────────────────────┤
 │ Frontend UI     │ Next.js 16.3 (React 19, Turbopack)            │
@@ -91,7 +100,7 @@
 - **MQTT Service**: Nhận dữ liệu từ ESP32, parse và lưu vào DB
 
 ### 3.3 AI/ML Microservice (FastAPI Python)
-- **3 mô hình dự báo năng lượng**: Baseline, Prophet (Champion), LSTM
+- **Mô hình dự báo năng lượng Champion (GBM)**: Gradient Boosting Machine với Huber Loss (R²=0.961, MAE=8.28 kW)
 - **Isolation Forest**: Phát hiện bất thường thiết bị
 - **Rule-Proxy Occupancy**: Suy luận mật độ người trong phòng
 - **MLOps Pipeline**: Tự động tái huấn luyện và theo dõi độ lệch
@@ -197,7 +206,7 @@ Sinh viên quẹt thẻ RFID tại ESP32
 ```
 Backend IntelligenceService
     → POST http://ml-service:8000/ml/forecast/energy
-    → ML FastAPI: Prophet/LSTM/Baseline inference
+    → ML FastAPI: Gradient Boosting Regressor (GBM Champion) inference
     → Trả về 24-168 điểm dự báo + confidence interval
     → Backend lưu MlPrediction
     → Backend tạo AiRecommendation (nếu cần)
@@ -213,20 +222,23 @@ Backend IntelligenceService
 ┌────────────────────────────────────────────────────┐
 │                  PHÂN QUYỀN NGƯỜI DÙNG             │
 ├───────────────┬────────────────────────────────────┤
-│ ROLE: ADMIN   │ Truy cập toàn bộ hệ thống          │
-│               │ - Quản lý phòng, thiết bị, người dùng│
-│               │ - Điều khiển thiết bị từ xa         │
-│               │ - Xem AI Dashboard & MLOps          │
-│               │ - Xem nhật ký bảo mật               │
-│               │ - Cấu hình Automation Rules         │
-│               │ - Duyệt/Từ chối AI Recommendations  │
+│ ROLE: ADMIN   │ Quản trị toàn diện campus          │
+│               │ - Quản lý phòng, cư dân, thiết bị  │
+│               │ - Phân bổ & điều chuyển phòng SV   │
+│               │ - Điều khiển tất cả thiết bị từ xa │
+│               │ - Xem AI Intelligence & MLOps      │
+│               │ - Quản lý an ninh & nhật ký RFID   │
+│               │ - Cấu hình Automation Rules        │
+│               │ - Phê duyệt AI Recommendations     │
 ├───────────────┼────────────────────────────────────┤
-│ ROLE: STUDENT │ Chỉ truy cập dữ liệu phòng mình    │
-│               │ - Xem cảm biến phòng (realtime)     │
-│               │ - Xem dự báo năng lượng phòng mình  │
-│               │ - Xem lịch sử ra vào của mình       │
-│               │ - KHÔNG được điều khiển thiết bị    │
-│               │ - KHÔNG được xem phòng khác         │
+│ ROLE: STUDENT │ Giới hạn trong phạm vi phòng mình  │
+│               │ - Xem cảm biến phòng (realtime)    │
+│               │ - Xem thông tin phòng & bạn phòng  │
+│               │ - ĐƯỢC điều khiển Đèn/Quạt phòng   │
+│               │ - Xem lịch sử quẹt thẻ RFID của mình│
+│               │ - Tự cập nhật SĐT, thông tin cá nhân│
+│               │ - KHÔNG được xem hoặc điều khiển   │
+│               │   thiết bị của các phòng khác      │
 └───────────────┴────────────────────────────────────┘
 ```
 
@@ -241,15 +253,15 @@ Mức 1 CRITICAL SAFETY
        → Phản hồi < 50ms
 
 Mức 2 SECURITY
-       → RFID Access Control, JWT Authentication
+       → RFID Access Control (RC522 UID 8 hex), JWT Authentication
        → RBAC (Role-Based Access Control)
 
 Mức 3 OPERATIONAL RULES
        → Rule Engine (nhiệt độ, threshold cứng)
-       → Automation Rules (Admin bật thủ công)
+       → Automation Rules (Admin cấu hình)
 
 Mức 4 AI RECOMMENDATIONS
-       → Tư vấn tối ưu năng lượng
+       → Tư vấn tối ưu năng lượng & vi khí hậu
        → Yêu cầu Admin phê duyệt trước khi thực thi
 ```
 
@@ -262,21 +274,25 @@ Mức 4 AI RECOMMENDATIONS
 | Frontend (Next.js) | 3000 | http://localhost:3000 |
 | Backend (NestJS) | 3001 | http://localhost:3001 |
 | ML Service (FastAPI) | 8000 | http://localhost:8000 |
-| InfluxDB | 8086 | http://localhost:8086 |
-| MQTT | 1883 | mqtt://localhost:1883 |
-| PostgreSQL | 5432 | postgresql://localhost:5432 |
+| InfluxDB | 8086 | http://localhost:8086 (Tùy chọn) |
+| MQTT Broker | 1883 | mqtt://broker.hivemq.com:1883 (hoặc local:1883) |
+| SQLite Database | — | `backend/prisma/dev.db` (chạy trực tiếp) |
+| PostgreSQL | 5432 | postgresql://localhost:5432 (Docker prod) |
 | Swagger API Docs | 3001 | http://localhost:3001/api/docs |
 | ML API Docs | 8000 | http://localhost:8000/docs |
 
 ---
 
-## 9. Tài Khoản Demo
+## 9. Tài Khoản Chuẩn Của Hệ Thống
 
-| Vai trò | Email | Mật khẩu | Phòng |
-|---|---|---|---|
-| Admin | `admin@smartdorm.com` | `admin123` | — |
-| Sinh viên 1 | `student1@smartdorm.com` | `student123` | A101 |
-| Sinh viên 2 | `student2@smartdorm.com` | `student123` | A102 |
+| Vai trò | Email | Mật khẩu | MSSV | Phòng mặc định | Mã Thẻ RFID |
+|---|---|---|---|---|---|
+| **Admin (Quản trị viên)** | `admin@ktx.edu.vn` | `admin123` | ADMIN001 | Toàn quyền quản trị | — |
+| **Sinh viên 1** | `sv001@student.edu.vn` | `sinhvien123` | SV2024001 | Phòng A-101 | `CARD_A1B2C3D4` |
+| **Sinh viên 2** | `sv002@student.edu.vn` | `sinhvien123` | SV2024002 | Phòng A-101 | `CARD_E5F6G7H8` |
+| **Sinh viên 3** | `sv003@student.edu.vn` | `sinhvien123` | SV2024003 | Phòng A-102 | `CARD_I9J0K1L2` |
+
+> *Ghi chú đăng ký mới:* Khi sinh viên mới đăng ký qua Cổng Đăng Ký, hệ thống sẽ tự động gán vai trò `STUDENT`, sinh tự động mã thẻ `CARD_XXXXXXXX` theo thuật toán SHA-256 từ MSSV và chuyển về trang đăng nhập để đăng nhập chính thức.
 
 ---
 
@@ -286,10 +302,10 @@ Mức 4 AI RECOMMENDATIONS
 |---|---|
 | Tổng số modules Backend | 16 modules NestJS |
 | Tổng số API endpoints | ~50 REST endpoints |
-| Tổng số trang Frontend | 35 routes (Next.js) |
-| Models AI/ML | 3 forecasting + 1 anomaly + 1 occupancy |
-| Dataset training | 103,680 records (12.8 MB) |
-| Test coverage | 100% (36 Python + 33 NestJS + 15 E2E) |
-| Docker containers | 6 services |
-| Thời gian build Frontend | ~9 giây (Turbopack) |
+| Tổng số trang Frontend | 32 routes Next.js 16 (App Router) |
+| Mô hình AI/ML chính thức | 1 Champion GBM (R²=0.9607, MAE=8.28 kW) + 1 Isolation Forest + 1 Occupancy Classifier |
+| Dataset training | 103,680 records (12.8 MB) chuẩn hóa |
+| Test coverage | 100% (36 Python pytest + 33 NestJS Jest + 15 Integration scenarios) |
+| Khởi động nhanh 1-Click | Script PowerShell `start.ps1` giải phóng port và mở đồng bộ toàn bộ service |
+| Thời gian build Frontend | ~2.5 giây (Turbopack Next.js 16.3) |
 | Tái huấn luyện MLOps | ~10.69 giây |

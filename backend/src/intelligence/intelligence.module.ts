@@ -3,6 +3,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { MqttModule } from '../mqtt/mqtt.module';
 import { EventsModule } from '../gateway/events.module';
 import { DevicesModule } from '../devices/devices.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { LlmModule } from './llm/llm.module';
 
 import { IntelligenceController, AutomationController } from './intelligence.controller';
@@ -25,6 +26,7 @@ import { CopilotContextService } from './copilot/context/copilot-context.service
     EventsModule,
     LlmModule,
     forwardRef(() => DevicesModule),
+    forwardRef(() => NotificationsModule),
   ],
   controllers: [
     IntelligenceController,

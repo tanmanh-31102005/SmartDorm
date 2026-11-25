@@ -33,6 +33,8 @@ export default function AlertsPage() {
   const [filterSeverity, setFilterSeverity] = useState<'ALL' | 'CRITICAL' | 'WARNING' | 'RESOLVED'>('ALL');
   const [selectedAlert, setSelectedAlert] = useState<IncidentAlert | null>(null);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [deviceStates, setDeviceStates] = useState<Record<string, { light?: boolean; fan?: boolean; door?: boolean }>>({});
+  const [doorUnlockTimers, setDoorUnlockTimers] = useState<Record<string, boolean>>({});
 
   // Load from backend API
   async function loadAlerts() {
@@ -74,10 +76,23 @@ export default function AlertsPage() {
     socket.on('emergency:resolved', (data: { id: string }) => {
       setAlerts(prev => prev.map(a => a.id === data.id ? { ...a, isResolved: true } : a));
     });
+    socket.on('device:status', (data: any) => {
+      if (data && (data.roomId || data.room)) {
+        const rKey = String(data.roomId || data.room);
+        setDeviceStates(prev => ({
+          ...prev,
+          [rKey]: {
+            ...prev[rKey],
+            [data.deviceType === 'LIGHT' ? 'light' : data.deviceType === 'FAN' ? 'fan' : 'door']: data.isOn,
+          },
+        }));
+      }
+    });
 
     return () => {
       socket.off('emergency:alert');
       socket.off('emergency:resolved');
+      socket.off('device:status');
     };
   }, []);
 
@@ -109,13 +124,32 @@ export default function AlertsPage() {
   async function handleDeviceAction(alert: IncidentAlert, deviceType: string, action: string) {
     const actionKey = `${alert.id}_${deviceType}_${action}`;
     setLoadingAction(actionKey);
+    const roomKey = String(alert.roomId || alert.roomNumber);
     try {
       await api.post('/devices/command', {
-        roomId: alert.roomId || alert.roomNumber,
+        roomId: roomKey,
         deviceType,
         action,
       });
-      success(`Đã gửi lệnh ${action.toUpperCase()} cho ${deviceType} tại Phòng ${alert.roomNumber}!`, 'Điều Khiển Trực Tiếp');
+
+      const isTurnOn = action === 'on' || action === 'unlock';
+      setDeviceStates(prev => ({
+        ...prev,
+        [roomKey]: {
+          ...prev[roomKey],
+          [deviceType === 'LIGHT' ? 'light' : deviceType === 'FAN' ? 'fan' : 'door']: isTurnOn,
+        },
+      }));
+
+      if (deviceType === 'DOOR_LOCK' && action === 'unlock') {
+        setDoorUnlockTimers(prev => ({ ...prev, [roomKey]: true }));
+        setTimeout(() => {
+          setDoorUnlockTimers(prev => ({ ...prev, [roomKey]: false }));
+        }, 4000);
+      }
+
+      const actionText = action === 'off' ? 'NGẮT ĐIỆN' : action === 'on' ? 'BẬT THIẾT BỊ' : 'MỞ KHÓA';
+      success(`Đã gửi lệnh [${actionText}] cho ${deviceType} tại Phòng ${alert.roomNumber}! Phần cứng ESP32 đã phản hồi.`, 'Điều Khiển Trực Tiếp');
     } catch (err: any) {
       error(`Không thể thực thi lệnh ${action.toUpperCase()}`, 'Lỗi');
     } finally {
@@ -296,51 +330,74 @@ export default function AlertsPage() {
 
               {/* Direct Action Buttons on Alert Row */}
               <div className="flex flex-wrap items-center gap-2 flex-shrink-0 self-end md:self-center">
-                {!alert.isResolved && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => handleDeviceAction(alert, 'LIGHT', 'off')}
-                      disabled={loadingAction === `${alert.id}_LIGHT_off`}
-                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 flex items-center gap-1 transition-all cursor-pointer"
-                      title="Ngắt nguồn điện / tắt đèn phòng"
-                    >
-                      <Zap className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Ngắt điện</span>
-                    </button>
+                {!alert.isResolved && (() => {
+                  const rKey = String(alert.roomId || alert.roomNumber);
+                  const roomState = deviceStates[rKey] || {};
+                  const isLightCut = roomState.light === false;
+                  const isFanRunning = roomState.fan === true;
+                  const isDoorOpening = Boolean(doorUnlockTimers[rKey]);
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeviceAction(alert, 'FAN', 'on')}
-                      disabled={loadingAction === `${alert.id}_FAN_on`}
-                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-900 hover:bg-blue-100 border border-blue-200 flex items-center gap-1 transition-all cursor-pointer"
-                      title="Bật quạt thông gió tối đa"
-                    >
-                      <Fan className="w-3.5 h-3.5 text-blue-700" />
-                      <span>Bật quạt</span>
-                    </button>
+                  return (
+                    <>
+                      {/* Nút Ngắt Điện / Bật Lại Điện */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeviceAction(alert, 'LIGHT', isLightCut ? 'on' : 'off')}
+                        disabled={loadingAction?.startsWith(`${alert.id}_LIGHT`)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                          isLightCut
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                            : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                        }`}
+                        title={isLightCut ? 'Điện phòng đã ngắt. Bấm để bật lại điện / đèn để test' : 'Ngắt nguồn điện / tắt đèn phòng chống tia lửa'}
+                      >
+                        <Zap className={`w-3.5 h-3.5 ${isLightCut ? 'text-emerald-600' : 'text-amber-600'}`} />
+                        <span>{isLightCut ? 'Đã ngắt điện (Bật lại)' : 'Ngắt điện'}</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeviceAction(alert, 'DOOR_LOCK', 'unlock')}
-                      disabled={loadingAction === `${alert.id}_DOOR_LOCK_unlock`}
-                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 flex items-center gap-1 transition-all cursor-pointer"
-                      title="Mở khóa chốt cửa phòng"
-                    >
-                      <Unlock className="w-3.5 h-3.5 text-amber-700" />
-                      <span>Mở cửa</span>
-                    </button>
+                      {/* Nút Bật Quạt / Tắt Quạt */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeviceAction(alert, 'FAN', isFanRunning ? 'off' : 'on')}
+                        disabled={loadingAction?.startsWith(`${alert.id}_FAN`)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                          isFanRunning
+                            ? 'bg-blue-600 text-white border-blue-700 hover:bg-blue-700 shadow-xs'
+                            : 'bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100'
+                        }`}
+                        title={isFanRunning ? 'Quạt thông gió đang chạy. Bấm để tắt quạt test' : 'Bật quạt thông gió tối đa phân tán khí'}
+                      >
+                        <Fan className={`w-3.5 h-3.5 ${isFanRunning ? 'text-white animate-spin' : 'text-blue-700'}`} />
+                        <span>{isFanRunning ? 'Quạt đang chạy (Tắt)' : 'Bật quạt'}</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => resolveAlert(alert.id)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-900 text-white hover:bg-blue-800 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Xác nhận xử lý</span>
-                    </button>
-                  </>
-                )}
+                      {/* Nút Mở Cửa (Tự khóa sau 4s) */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeviceAction(alert, 'DOOR_LOCK', 'unlock')}
+                        disabled={isDoorOpening || loadingAction === `${alert.id}_DOOR_LOCK_unlock`}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                          isDoorOpening
+                            ? 'bg-amber-500 text-white border-amber-600 animate-pulse'
+                            : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                        }`}
+                        title="Mở khóa chốt cửa phòng (tự khóa lại sau 4s)"
+                      >
+                        <Unlock className={`w-3.5 h-3.5 ${isDoorOpening ? 'text-white' : 'text-amber-700'}`} />
+                        <span>{isDoorOpening ? 'Đang mở (4s)...' : 'Mở cửa'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => resolveAlert(alert.id)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-900 text-white hover:bg-blue-800 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Xác nhận xử lý</span>
+                      </button>
+                    </>
+                  );
+                })()}
 
                 <Button
                   variant="outline"

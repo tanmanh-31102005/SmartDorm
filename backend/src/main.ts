@@ -6,10 +6,16 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // CORS — cho phép Frontend Next.js kết nối
+  // CORS — cho phép Frontend Next.js (localhost, IP VPS hoặc domain) kết nối
   app.enableCors({
-    origin: ['http://localhost:3000', process.env.FRONTEND_URL || '*'],
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT'],
+    origin: (origin, callback) => {
+      if (!origin || process.env.CORS_ALLOW_ALL !== 'false') {
+        return callback(null, true);
+      }
+      const allowed = ['http://localhost:3000', process.env.FRONTEND_URL].filter(Boolean);
+      callback(null, allowed.includes(origin));
+    },
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT', 'OPTIONS'],
     credentials: true,
   });
 

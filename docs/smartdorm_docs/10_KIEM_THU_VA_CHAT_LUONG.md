@@ -42,55 +42,44 @@ pytest tests/ -v --tb=short
 
 ### 2.2 Chi Tiết Test Suites
 
-#### `tests/test_ai_suite.py` — 10 Tests
+#### `tests/test_ai_suite.py` — 7 Tests
 
 | Test | Mô tả | Status |
 |---|---|---|
-| `test_energy_forecast_prophet` | Prophet trả về 24 điểm dự báo hợp lệ | PASS |
-| `test_energy_forecast_lstm` | LSTM trả về dự báo với confidence interval | PASS |
-| `test_energy_forecast_baseline` | Baseline đơn giản hoạt động đúng | PASS |
-| `test_forecast_compare_all_models` | So sánh 3 models trả về đầy đủ metrics | PASS |
+| `test_energy_forecast_gbm` | Champion GBM trả về dự báo với confidence interval | PASS |
+| `test_forecast_compare_champion_gbm` | Endpoint so sánh trả về Champion GBM duy nhất với đầy đủ metrics | PASS |
 | `test_anomaly_detection_normal` | Thiết bị bình thường không bị flag | PASS |
 | `test_anomaly_detection_overload` | Thiết bị quá tải được phát hiện | PASS |
 | `test_occupancy_occupied_room` | Phòng có người được phân loại đúng | PASS |
 | `test_occupancy_vacant_room` | Phòng trống được phân loại đúng | PASS |
-| `test_model_promotion` | Promote model hoạt động đúng | PASS |
 | `test_model_status_endpoint` | /ml/model-status trả về đúng format | PASS |
 
-#### `tests/test_forecast.py` — 4 Tests
+#### `tests/test_forecast.py` — 4 Tests (Champion GBM)
 
 ```python
-def test_prophet_forecast_returns_correct_horizon():
+def test_gbm_forecast_returns_correct_horizon():
     request = ForecastRequest(roomId="A101", horizonHours=24)
     response = generate_energy_forecast(request)
     
     assert len(response.points) == 24
     assert all(p.powerW >= 0 for p in response.points)
-    assert response.summary.inferenceMs < 1000  # < 1 second
+    assert response.summary.inferenceMs < 50  # < 50ms Ultra-Fast
 
-def test_lstm_forecast_has_confidence_interval():
+def test_gbm_forecast_has_confidence_interval():
     request = ForecastRequest(roomId="A101", horizonHours=24)
-    response = generate_lstm_forecast(request)
+    response = generate_energy_forecast(request)
     
     assert all(p.powerWLower <= p.powerW <= p.powerWUpper for p in response.points)
 
-def test_baseline_is_deterministic():
-    request = ForecastRequest(roomId="A101", horizonHours=24)
-    result1 = generate_baseline_forecast(request)
-    result2 = generate_baseline_forecast(request)
-    
-    # Baseline phải trả về kết quả giống nhau
-    assert result1.points == result2.points
 
-def test_model_comparison_includes_all_three():
+def test_forecast_model_gbm_champion():
     request = ForecastRequest(roomId="A101", horizonHours=24)
-    comparator = get_model_comparator()
-    result = comparator.compare_on_request(request)
+    forecaster = get_energy_forecaster()
+    result = forecaster.forecast(request)
     
-    model_names = [r['model'] for r in result['comparison']]
-    assert 'energy-baseline' in model_names
-    assert 'energy-prophet' in model_names
-    assert 'energy-lstm' in model_names
+    assert result['model'] == 'energy-gbm'
+    assert len(result['points']) == 24
+    assert result['inferenceMs'] < 20
 ```
 
 #### `tests/test_anomaly.py` — 4 Tests
@@ -184,7 +173,7 @@ describe('IntelligenceService', () => {
   describe('getEnergyForecast', () => {
     it('should return 24 forecast points for default horizon');
     it('should return 168 points for weekly horizon');
-    it('should use Prophet as champion model');
+    it('should use GBM as champion model');
     it('should include confidence intervals');
     it('should fallback to baseline if ML service unavailable');
   });
@@ -272,13 +261,13 @@ TC-CORE-02: ML Microservice Health Check
   → Status: PASS
 
 TC-AUTH-01: Admin Authentication JWT
-  → POST /api/auth/login {email: "admin@smartdorm.com", password: "admin123"}
+  → POST /api/auth/login {email: "admin@ktx.edu.vn", password: "admin123"}
   → Expect: {access_token: "eyJ..."}, role: "ADMIN"
   → Status: PASS
 
 TC-AUTH-02: Student Scoped Authentication
-  → POST /api/auth/login {email: "student1@smartdorm.com", password: "student123"}
-  → Expect: {access_token: "eyJ..."}, role: "STUDENT", roomId: "clroom001"
+  → POST /api/auth/login {email: "sv001@student.edu.vn", password: "sinhvien123"}
+  → Expect: {access_token: "eyJ..."}, role: "STUDENT", roomId: "roomA101"
   → Status: PASS
 
 TC-ROOM-01: Fetch Dormitory Rooms
@@ -335,7 +324,7 @@ TC-AI-01: ML Isolation Forest Scanning
 
 TC-AI-02: ML Energy Forecast 24h
   → POST /ml/forecast/energy {roomId: "...", horizonHours: 24}
-  → Expect: {model: "energy-prophet", points: [...24 items], inferenceMs < 100}
+  → Expect: {model: "energy-gbm", points: [...24 items], inferenceMs < 20}
   → Status: PASS
 
 TC-AI-03: ML Room Occupancy Inference
@@ -430,11 +419,12 @@ Route (app)                    Size     First Load JS
 | API response time (p95) | < 500ms | ~120ms | ✅ |
 | WebSocket latency | < 200ms | ~50ms | ✅ |
 | Emergency alert latency | < 50ms | ~30ms | ✅ |
-| Prophet inference | < 100ms | 12ms | ✅ |
-| LSTM inference | < 200ms | 28ms | ✅ |
-| Baseline inference | < 10ms | 2ms | ✅ |
+| GBM Champion inference | < 20ms | 8ms | ✅ |
+| Isolation Forest anomaly scan | < 50ms | 8ms | ✅ |
+| Occupancy classifier inference | < 20ms | 4ms | ✅ |
+| Baseline fallback inference | < 10ms | 2ms | ✅ |
 | Frontend build time | < 30s | 9s | ✅ |
-| MLOps retraining | < 60s | 10.69s | ✅ |
+| MLOps retraining (offline job) | < 60s | 5.1s | ✅ |
 | Database query (indexed) | < 50ms | ~15ms | ✅ |
 
 ---

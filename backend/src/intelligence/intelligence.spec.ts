@@ -279,19 +279,17 @@ describe('Intelligence & Automation Layer (NestJS)', () => {
       expect(lstmForecast.summary.totalForecastKwh).toBeGreaterThan(0);
     });
 
-    it('should perform 3-model benchmark comparison (Baseline vs GBM vs LSTM)', async () => {
+    it('should perform Champion GBM forecast verification', async () => {
       const comparison = await mlClientService.compareForecastModels({ horizonHours: 24 });
       expect(comparison).toBeDefined();
-      expect(comparison.models.length).toBe(3);
+      expect(comparison.models.length).toBe(1);
       expect(comparison.timeline.length).toBe(24);
-      expect(comparison.timeline[0]).toHaveProperty('baselinePowerW');
       expect(comparison.timeline[0]).toHaveProperty('gbmPowerW');
-      expect(comparison.timeline[0]).toHaveProperty('lstmPowerW');
     });
 
-    it('should report model health metadata for all 4 models', async () => {
+    it('should report model health metadata for all 3 models', async () => {
       const models = await mlClientService.getModelHealthList();
-      expect(models.length).toBe(4);
+      expect(models.length).toBe(3);
       expect(models.map(m => m.type)).toContain('FORECAST');
       expect(models.map(m => m.type)).toContain('ANOMALY');
       expect(models.map(m => m.type)).toContain('OCCUPANCY');
@@ -434,11 +432,11 @@ describe('Intelligence & Automation Layer (NestJS)', () => {
     it('GET /api/intelligence/energy/comparison returns benchmark comparison', async () => {
       const comp = await intelligenceController.getForecastComparison({ horizonHours: 24 });
       expect(comp).toBeDefined();
-      expect(comp.models.length).toBe(3);
+      expect(comp.models.length).toBe(1);
     });
 
     it('POST /api/intelligence/models/:name/promote promotes active model', async () => {
-      const promo = await intelligenceController.promoteModel('energy-lstm-forecaster');
+      const promo = await intelligenceController.promoteModel('energy-gbm-forecaster');
       expect(promo.success).toBe(true);
     });
 

@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/ToastContext';
 import { useIntelligenceStore } from '@/lib/intelligence-store';
+import { API_BASE_URL } from '@/lib/api';
 
 import { 
   LayoutDashboard, 
@@ -188,7 +189,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       title: 'INTELLIGENCE & AI',
       items: [
         { href: '/dashboard/intelligence', icon: Sparkles, label: 'AI Overview' },
-        { href: '/dashboard/intelligence/energy', icon: Zap, label: 'Dự Báo Phụ Tải' },
         {
           href: '/dashboard/intelligence/anomalies',
           icon: AlertTriangle,
@@ -220,7 +220,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {
       title: 'GIÁM SÁT IOT',
       items: [
-        { href: '/dashboard/energy', icon: Zap, label: 'Tiêu Thụ Điện Năng' },
         { href: '/dashboard/environment', icon: Thermometer, label: 'Vi Khí Hậu & Cảm Biến' },
         { href: '/dashboard/security', icon: ShieldCheck, label: 'An Ninh & Cửa Điện' },
         { href: '/dashboard/access-log', icon: CreditCard, label: 'Nhật Ký Quẹt Thẻ' },
@@ -263,7 +262,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     
     const getLabel = (seg: string, fullPath: string) => {
       if (fullPath === '/dashboard/intelligence') return 'AI Intelligence Center';
-      if (fullPath === '/dashboard/intelligence/energy') return 'Dự Báo Phụ Tải AI';
       if (fullPath === '/dashboard/intelligence/anomalies') return 'Bất Thường Thiết Bị';
       if (fullPath === '/dashboard/intelligence/occupancy') return 'Dự Đoán Lưu Trú';
       if (fullPath === '/dashboard/intelligence/recommendations') return 'Khuyến Nghị AI';
@@ -403,7 +401,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Swagger API Link */}
             <a
-              href="http://localhost:3001/api/docs"
+              href={`${API_BASE_URL}/api/docs`}
               target="_blank"
               rel="noreferrer"
               className="hidden lg:flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-blue-900 hover:bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 transition-colors shadow-2xs"

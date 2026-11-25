@@ -172,16 +172,16 @@ async function main() {
   // 8. Tạo ML Models & Registry
   const defaultModels = [
     {
-      modelName: 'energy-prophet',
+      modelName: 'energy-gbm',
       modelType: 'FORECAST',
       version: 'v2.1',
       status: 'ACTIVE',
       trainedAt: new Date(now - 1000 * 60 * 60 * 24 * 3),
       datasetStart: new Date(now - 1000 * 60 * 60 * 24 * 90),
       datasetEnd: new Date(now - 1000 * 60 * 60 * 24 * 3),
-      metrics: JSON.stringify({ mae: 0.42, rmse: 0.68, mape: 3.82, r2: 0.946 }),
-      inferenceMs: 12,
-      notes: 'Prophet time-series forecaster with additive diurnal harmonics and university calendar holidays.',
+      metrics: JSON.stringify({ mae: 0.38, rmse: 0.54, mape: 3.12, r2: 0.965 }),
+      inferenceMs: 8,
+      notes: 'Gradient Boosting Regressor (GBM) Champion - mô hình dự báo tối ưu phụ tải KTX.',
     },
     {
       modelName: 'energy-baseline',
@@ -277,7 +277,7 @@ async function main() {
       title: 'Tòa B: Dự Báo Điện Năng Giờ Cao Điểm Tăng 14.2%',
       description: 'Dự báo tiêu thụ điện lúc 19:30 - 21:30 sẽ đạt đỉnh 1.84 kW/h do thời tiết oi bức.',
       location: 'Building B',
-      reason: 'Dự báo Prophet phát hiện xu hướng tiêu thụ điện tăng 14.2% so với baseline cùng kỳ.',
+      reason: 'Dự báo GBM phát hiện xu hướng tiêu thụ điện tăng 14.2% so với baseline cùng kỳ.',
       recommendation: 'Kích hoạt chính sách ECO Mode cho điều hòa hành lang và điều chỉnh nhiệt độ phòng tự động.',
       confidence: 0.94,
       evidence: JSON.stringify({ baselineKwh: 1.61, forecastKwh: 1.84, deltaPct: 14.2 }),

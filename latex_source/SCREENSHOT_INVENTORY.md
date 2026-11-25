@@ -21,7 +21,7 @@
 | 9 | `admin_09_emergency_resolved.png` | Xử lý sự cố (`/dashboard/emergency`) | Thao tác Resolve sự cố, cập nhật trạng thái đã giải quyết | ✅ Sẵn sàng |
 | 10 | `admin_10_analytics_charts.png` | Phân tích dữ liệu & Báo cáo (`/dashboard/analytics`) | Biểu đồ Time-Series nhiệt độ, độ ẩm, công suất điện | ✅ Sẵn sàng |
 | 11 | `admin_11_energy_monitoring.png` | Giám sát năng lượng (`/dashboard/energy`) | Thống kê tiêu thụ điện kWh theo tòa nhà và dự báo | ✅ Sẵn sàng |
-| 12 | `admin_12_intelligence_models.png` | Quản trị mô hình AI (`/dashboard/intelligence/models`) | Danh sách ML Model (Prophet, Isolation Forest, LSTM) | ✅ Sẵn sàng |
+| 12 | `admin_12_intelligence_models.png` | Quản trị mô hình AI (`/dashboard/intelligence/models`) | Danh sách ML Model (Champion GBM, Isolation Forest, Occupancy Classifier) | ✅ Sẵn sàng |
 | 13 | `admin_13_ai_recommendations.png` | Đề xuất tối ưu AI (`/dashboard/intelligence/recommendations`) | Danh sách đề xuất tiết kiệm điện và bảo trì kèm nút Duyệt | ✅ Sẵn sàng |
 | 14 | `admin_14_ai_anomalies.png` | Phát hiện bất thường (`/dashboard/intelligence/anomalies`) | Danh sách thiết bị quá tải điện phát hiện qua Isolation Forest | ✅ Sẵn sàng |
 | 15 | `admin_15_ai_copilot_assistant.png` | AI Copilot Chat Assistant (`/dashboard/intelligence/assistant`) | Giao diện hội thoại tương tác AI Copilot & Function calling | ✅ Sẵn sàng |

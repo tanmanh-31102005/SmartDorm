@@ -22,7 +22,7 @@ latex_source/media/test-evidence/
 │   ├── postgresql/            # Cấu trúc bảng và truy vấn Prisma CLI / CSDL
 │   └── influxdb/              # Truy vấn dữ liệu chuỗi thời gian trên InfluxDB
 ├── simulator/                 # Nhật ký chạy trình giả lập Python đa phòng
-├── analytics/                 # Đồ thị tiêu thụ năng lượng và biểu đồ dự báo Prophet
+├── analytics/                 # Đồ thị tiêu thụ năng lượng và biểu đồ dự báo GBM Champion
 └── testing/                   # Báo cáo kết quả kiểm thử Jest và Pytest
 ```
 

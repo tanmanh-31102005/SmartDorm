@@ -164,7 +164,7 @@ model Emergency {
 
 model MlModel {
   id           String    @id @default(cuid())
-  modelName    String    // "energy-baseline" | "energy-prophet" | "device-anomaly-iforest" | "occupancy-rule-proxy"
+  modelName    String    // "energy-baseline" | "energy-gbm" | "device-anomaly-iforest" | "occupancy-rule-proxy"
   modelType    String    // "FORECAST" | "ANOMALY" | "OCCUPANCY"
   version      String    @default("v1")
   status       String    @default("EXPERIMENTAL") // "EXPERIMENTAL" | "ACTIVE" | "DEPRECATED"

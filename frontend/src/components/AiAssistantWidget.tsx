@@ -21,6 +21,7 @@ import {
   Radio,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { API_URL } from '@/lib/api';
 
 export interface StructuredChatMessage {
   id: string;
@@ -48,7 +49,7 @@ export function AiAssistantWidget() {
     {
       id: 'welcome',
       sender: 'ai',
-      text: `Xin chào! Tôi là **SmartDorm AI Copilot**, trợ lý trí tuệ nhân tạo có căn cứ dữ liệu thực tế (Data Grounding). Tôi được kết nối trực tiếp với **Google Gemini**, mạng nơ-ron **LSTM Forecaster**, thuật toán **Isolation Forest** và luồng vi khí hậu **Wokwi ESP32 Digital Twin**.`,
+      text: `Xin chào! Tôi là **SmartDorm AI Copilot**, trợ lý trí tuệ nhân tạo có căn cứ dữ liệu thực tế (Data Grounding). Tôi được kết nối trực tiếp với **Google Gemini**, mô hình Champion **Gradient Boosting (GBM Forecaster)**, thuật toán **Isolation Forest** và luồng vi khí hậu **Wokwi ESP32 Digital Twin**.`,
       timestamp: 'Vừa xong',
       confidence: 0.98,
       dataSourceType: 'WOKWI_SIMULATION',
@@ -56,7 +57,7 @@ export function AiAssistantWidget() {
         'Giám sát dữ liệu 248 phòng sinh viên & 744 cảm biến vi khí hậu',
         'Tự động phân tích đỉnh tải điện & dị thường thiết bị theo thời gian thực',
       ],
-      dataSources: ['LSTM_NEURAL_NETWORK', 'WOKWI_DHT22_MQ2_STREAM', 'POSTGRES_DATABASE'],
+      dataSources: ['GBM_CHAMPION_FORECASTER', 'WOKWI_DHT22_MQ2_STREAM', 'POSTGRES_DATABASE'],
     },
   ]);
   const [inputMessage, setInputMessage] = useState('');
@@ -113,7 +114,7 @@ export function AiAssistantWidget() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('http://localhost:3001/api/intelligence/copilot/chat', {
+      const res = await fetch(`${API_URL}/intelligence/copilot/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

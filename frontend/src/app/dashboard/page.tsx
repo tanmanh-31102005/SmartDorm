@@ -14,7 +14,6 @@ import {
   BUILDINGS_DATA,
   INITIAL_ROOMS,
   INITIAL_ALERTS,
-  ENERGY_TREND_DATA,
   RoomData,
   IncidentAlert,
   BuildingData
@@ -59,7 +58,6 @@ export default function AdminDashboardPage() {
   const [alerts, setAlerts] = useState<IncidentAlert[]>(INITIAL_ALERTS);
   const [realtimeLog, setRealtimeLog] = useState<any[]>([]);
   const [tempChart, setTempChart] = useState<any[]>([]);
-  const [energyPeriod, setEnergyPeriod] = useState<'24h' | '7d' | '30d'>('24h');
   const [selectedBuildingFilter, setSelectedBuildingFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState('');
@@ -340,15 +338,15 @@ export default function AdminDashboardPage() {
             />
 
             <MetricCard
-              label="TIÊU THỤ ĐIỆN NĂNG (KWH)"
-              value={`${kpi.energyConsumptionKwh.toLocaleString('en-US')} kWh`}
-              change={{ value: kpi.energyChangePercent, trend: 'down', label: 'tiết kiệm 8.6%' }}
-              subValue="Ước tính ~42.3 triệu VNĐ"
-              tag="Tối ưu năng lượng"
-              tagVariant="info"
-              icon={<Zap className="w-4 h-4 text-blue-700" />}
-              iconBg="bg-blue-50 text-blue-700"
-              onClick={() => router.push('/dashboard/energy')}
+              label="GIÁM SÁT VI KHÍ HẬU (DHT22 & MQ-2)"
+              value="27.5 °C"
+              subValue="Độ ẩm: 62% · Cảm biến gas: An toàn"
+              change={{ value: '99.5%', trend: 'up', label: 'chuẩn vi khí hậu' }}
+              tag="Vi khí hậu lý tưởng"
+              tagVariant="success"
+              icon={<Thermometer className="w-4 h-4 text-emerald-700" />}
+              iconBg="bg-emerald-50 text-emerald-700"
+              onClick={() => router.push('/dashboard/rooms')}
             />
 
             <MetricCard
@@ -379,11 +377,11 @@ export default function AdminDashboardPage() {
                   AI Insights & Autonomous Intelligence
                 </h3>
                 <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-bold px-2 py-0.5 rounded-full">
-                  ML Pipeline Active
+                  GBM Pipeline Active
                 </span>
               </div>
               <p className="text-[11px] text-slate-300 mt-0.5">
-                Dự báo chuỗi thời gian phụ tải, phát hiện bất thường thiết bị và tối ưu năng lượng campus KTX.
+                Dự báo chuỗi thời gian lưu trú (GBM Champion), giám sát cảm biến môi trường DHT22 và phát hiện bất thường thiết bị KTX.
               </p>
             </div>
           </div>
@@ -398,23 +396,23 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* AI Card 1: Energy Projection */}
+          {/* AI Card 1: Occupancy Prediction */}
           <div
-            onClick={() => router.push('/dashboard/intelligence/energy')}
+            onClick={() => router.push('/dashboard/intelligence/occupancy')}
             className="p-3.5 rounded-xl bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/10 transition-all cursor-pointer flex flex-col justify-between"
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-blue-200">
-                Dự Báo Phụ Tải 24h
+                Dự Đoán Lưu Trú AI
               </span>
-              <Zap className="w-4 h-4 text-blue-400" />
+              <Users className="w-4 h-4 text-blue-400" />
             </div>
             <div className="text-xl font-bold font-mono text-white mb-1">
-              19,250 kWh
+              92.4%
             </div>
             <div className="flex items-center justify-between text-[11px] text-slate-300 pt-2 border-t border-white/10">
-              <span>Đỉnh: 19:30 @ 98.4 kW</span>
-              <span className="text-emerald-400 font-bold font-mono">+8.2% vs T2</span>
+              <span>Đỉnh hiện diện: 21:00</span>
+              <span className="text-emerald-400 font-bold font-mono">GBM Model</span>
             </div>
           </div>
 
@@ -590,8 +588,8 @@ export default function AdminDashboardPage() {
                       <span className="font-bold text-slate-800 font-mono">{b.deviceCount} nodes</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-slate-400 block text-[10px]">Điện hôm nay</span>
-                      <span className="font-bold text-blue-900 font-mono">{b.energyUsageTodayKwh} kWh</span>
+                      <span className="text-slate-400 block text-[10px]">Cảm biến MQ-2</span>
+                      <span className="font-bold text-emerald-700 font-mono">100% OK</span>
                     </div>
                   </div>
                 </div>

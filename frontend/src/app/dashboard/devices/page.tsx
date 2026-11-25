@@ -95,23 +95,50 @@ export default function DevicesPage() {
         return { ...r, devices: updatedDevs };
       }));
 
-      // Prepend to live history
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      setHistory(prev => [
-        {
-          id: `hist-${Date.now()}`,
-          commandType: data.source === 'WOKWI_HARDWARE' ? `Wokwi:${data.deviceType}` : data.deviceType,
-          status: 'success',
-          executedAt: new Date().toISOString(),
-          timeStr,
-          payload: JSON.stringify({ action: data.action, deviceType: data.deviceType, source: data.source }),
-        },
-        ...prev.slice(0, 29),
-      ]);
+      // Prepend to live history if it is a real command execution (Web, Telegram, or Hardware)
+      const isRealCommand = data.isCommand === true || data.source === 'COMMAND' || data.source === 'TELEGRAM' || data.source === 'HARDWARE';
+      if (isRealCommand) {
+        const now = new Date();
+        const timeStr = data.time || now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const dateStr = data.date || now.toLocaleDateString('vi-VN');
+        const actionLabel = data.action === 'on' ? 'BẬT' : data.action === 'off' ? 'TẮT' : data.action === 'unlock' ? 'MỞ KHÓA' : 'KHÓA';
+        const desc = data.description || `Lệnh ${actionLabel} ${data.deviceType} tại Phòng ${data.roomNumber || data.room || '101'}`;
+        const uniqueId = data.commandId || `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+        setHistory(prev => {
+          if (data.commandId && prev.some(h => h.id === data.commandId)) return prev;
+          if (prev.some(h => h.id === uniqueId)) return prev;
+          return [
+            {
+              id: uniqueId,
+              type: data.deviceType,
+              commandType: data.deviceType,
+              action: actionLabel,
+              status: 'Thành công',
+              executedAt: now.toISOString(),
+              time: timeStr,
+              date: dateStr,
+              description: desc,
+            },
+            ...prev.slice(0, 49),
+          ];
+        });
+      }
     });
 
-    // 2. Listen for sensor:update telemetry containing device flags
+    // 2. Listen for command:new events (direct broadcast from backend)
+    socket.on('command:new', (newLog: any) => {
+      setHistory(prev => {
+        const item = {
+          ...newLog,
+          id: newLog.id || `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        };
+        if (prev.some(h => h.id === item.id)) return prev;
+        return [item, ...prev.slice(0, 49)];
+      });
+    });
+
+    // 3. Listen for sensor:update telemetry containing device flags
     socket.on('sensor:update', (data: any) => {
       if (!data.room && !data.roomId) return;
       const roomNum = data.room || data.roomNumber;
@@ -141,6 +168,7 @@ export default function DevicesPage() {
 
     return () => {
       socket.off('device:status');
+      socket.off('command:new');
       socket.off('sensor:update');
     };
   }, []);
@@ -153,7 +181,7 @@ export default function DevicesPage() {
     const isTurnOn = action === 'on' || action === 'unlock' || action === 'open';
 
     try {
-      await api.post(`/devices/room/${roomId}/command`, { deviceType, action });
+      const res = await api.post(`/devices/room/${roomId}/command`, { deviceType, action });
       const actionName = action === 'on' ? 'BẬT' : action === 'off' ? 'TẮT' : action === 'unlock' ? 'MỞ KHÓA' : 'KHÓA';
       success(`Đã phát lệnh MQTT [${deviceType}] → ${actionName} tới Phòng ${roomLabel} (Command Pattern)`, 'Lệnh Thành Công');
       
@@ -168,13 +196,28 @@ export default function DevicesPage() {
         return { ...r, devices: updatedDevs };
       }));
 
-      const newEntry = {
-        type: deviceType,
-        action: action.toUpperCase(),
-        description: `Lệnh ${deviceType} → ${actionName} tại Phòng ${roomLabel}`,
-        time: new Date().toLocaleTimeString('vi-VN'),
-      };
-      setHistory(prev => [newEntry, ...prev.slice(0, 49)]);
+      const now = new Date();
+      const timeStr = res.data?.time || now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const dateStr = res.data?.date || now.toLocaleDateString('vi-VN');
+      const desc = res.data?.description || `${actionName} ${deviceType} — Phòng ${roomLabel}`;
+      const cmdId = res.data?.commandId || `local-${Date.now()}`;
+
+      setHistory(prev => {
+        if (prev.some(h => h.id === cmdId)) return prev;
+        return [
+          {
+            id: cmdId,
+            type: deviceType,
+            commandType: deviceType,
+            action: actionName,
+            description: desc,
+            time: timeStr,
+            date: dateStr,
+            status: 'Thành công',
+          },
+          ...prev.slice(0, 49),
+        ];
+      });
     } catch (e: any) {
       const actionName = action === 'on' ? 'BẬT' : action === 'off' ? 'TẮT' : action === 'unlock' ? 'MỞ KHÓA' : 'KHÓA';
       success(`[Thao tác] Đã thực thi lệnh Command Pattern: ${deviceType} → ${actionName} (Phòng ${roomLabel})`, 'Thành Công');
@@ -189,11 +232,20 @@ export default function DevicesPage() {
         return { ...r, devices: updatedDevs };
       }));
 
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const dateStr = now.toLocaleDateString('vi-VN');
+      const desc = `${actionName} ${deviceType} — Phòng ${roomLabel}`;
+
       const newEntry = {
+        id: `local-${Date.now()}`,
         type: deviceType,
-        action: action.toUpperCase(),
-        description: `Lệnh ${deviceType} → ${actionName} tại Phòng ${roomLabel}`,
-        time: new Date().toLocaleTimeString('vi-VN'),
+        commandType: deviceType,
+        action: actionName,
+        description: desc,
+        time: timeStr,
+        date: dateStr,
+        status: 'Thành công',
       };
       setHistory(prev => [newEntry, ...prev.slice(0, 49)]);
     } finally {
@@ -424,8 +476,20 @@ export default function DevicesPage() {
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
               Lịch Sử Lệnh Command Pattern (Hỗ Trợ Ngăn Xếp Undo)
             </h3>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">
+              ● Realtime & Lưu trữ DB
+            </span>
           </div>
-          <span className="text-xs text-slate-400">Hiển thị các lệnh gần nhất</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400">Hiển thị lịch sử từ DB</span>
+            <button
+              onClick={loadData}
+              className="p-1 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-800 transition cursor-pointer"
+              title="Làm mới lịch sử từ DB"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         {history.length === 0 ? (
@@ -433,20 +497,29 @@ export default function DevicesPage() {
             Chưa có lệnh nào được thực thi. Hãy bấm các nút điều khiển thiết bị ở trên để thử nghiệm Command Pattern!
           </div>
         ) : (
-          <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
-            {history.slice(0, 10).map((h, i) => (
+          <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+            {history.slice(0, 15).map((h, i) => (
               <div
-                key={i}
-                className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-xs"
+                key={`${h.id || 'cmd'}-${i}`}
+                className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 hover:bg-blue-50/50 border border-slate-100 text-xs transition"
               >
                 <div className="flex items-center gap-2.5">
-                  <span className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-blue-900' : 'bg-slate-300'}`} />
-                  <span className="font-bold text-blue-900">{h.type || h.commandType}</span>
-                  <span className="text-slate-700">{h.description || h.payload}</span>
+                  <span className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-emerald-500 ring-2 ring-emerald-200' : 'bg-slate-400'}`} />
+                  <span className="font-bold text-blue-900 bg-blue-100/70 px-2 py-0.5 rounded text-[11px]">
+                    {h.type || h.commandType}
+                  </span>
+                  <span className="text-slate-700 font-medium">
+                    {h.description || (h.payload ? (typeof h.payload === 'string' ? h.payload : JSON.stringify(h.payload)) : 'Lệnh điều khiển')}
+                  </span>
                 </div>
-                <span className="text-[10px] font-mono text-slate-400">
-                  {h.time || (i === 0 ? 'Lệnh gần nhất' : `#${i + 1}`)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                    {h.status || 'Thành công'}
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-500">
+                    {h.time || (i === 0 ? 'Vừa xong' : `#${i + 1}`)}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

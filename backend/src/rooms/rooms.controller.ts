@@ -22,6 +22,18 @@ export class RoomsController {
   @ApiOperation({ summary: 'Thống kê tổng quan hệ thống' })
   getStats() { return this.roomsService.getStats(); }
 
+  @Get('residents/all')
+  @ApiOperation({ summary: 'Danh sách toàn bộ sinh viên lưu trú cho Admin' })
+  getAllResidents() { return this.roomsService.getAllResidents(); }
+
+  @Patch('residents/:userId/assign-room')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Phân bổ hoặc đổi phòng cho sinh viên' })
+  assignRoom(@Param('userId') userId: string, @Body() body: { roomId: string | null }) {
+    return this.roomsService.assignRoom(userId, body.roomId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Chi tiết một phòng' })
   findOne(@Param('id') id: string) { return this.roomsService.findOne(id); }

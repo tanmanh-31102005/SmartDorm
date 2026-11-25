@@ -19,7 +19,7 @@
 ```mermaid
 flowchart TB
     subgraph Layer1 ["1. TẦNG THIẾT BỊ IoT & DIGITAL TWIN"]
-        Sensors["Cảm biến DHT22 (Nhiệt/Ẩm), MQ-2 (Gas/Khói), PZEM-004T (Điện), RFID RC522"]
+        Sensors["Cảm biến DHT22 (Nhiệt/Ẩm), MQ-2 (Gas/Khói), Thẻ RFID RC522"]
         ESP32["ESP32 Microcontroller (Wokwi Twin / Real Hardware)"]
         Actuators["Rơ-le Đèn, Quạt Thông Gió, Khóa Cửa Điện Từ, Còi Báo Động"]
         Sensors --> ESP32
@@ -36,8 +36,7 @@ flowchart TB
         Prisma["Prisma ORM (PostgreSQL & SQLite)"]
         RuleEngine["Deterministic Safety Rule Engine (Strategy Pattern)"]
         FastAPI["FastAPI ML Service (Port 8000)"]
-        GBM["GBM Forecaster Champion (R2=0.9607, 15 Features)"]
-        LSTM["LSTM Forecaster Challenger (PyTorch)"]
+        GBM["GBM Forecaster Champion (R2=0.9607, 13 Features)"]
         IForest["Isolation Forest (Phát hiện dị thường thiết bị)"]
         OccModel["Random Forest (Dự báo hiện diện sinh viên)"]
         Gemini["Google Gemini 1.5 Pro (Trợ lý ảo Copilot Grounded)"]
@@ -57,7 +56,6 @@ flowchart TB
     NestJS -->|Evaluate Safety Rules| RuleEngine
     NestJS -->|REST API Client| FastAPI
     FastAPI --> GBM
-    FastAPI --> LSTM
     FastAPI --> IForest
     FastAPI --> OccModel
     NestJS -->|Data Grounding - 12 Tools| Gemini
@@ -97,7 +95,7 @@ Hệ thống **SmartDorm Enterprise** được tổ chức thành 4 phân hệ l
 
 | Module / Trang | Thuật toán & Công nghệ | Mô tả tính năng & Chỉ số hiệu năng |
 |---|---|---|
-| **Dự Báo Phụ Tải Đa Biến** | `Gradient Boosting (GBM)` | Huấn luyện với **15 đặc trưng đa biến** (Lags 1h-24h, nhiệt ẩm môi trường, chỉ số ngày, giờ cao điểm); Đạt **$R^2 = 0.9607$**, **$MAPE = 4.69\%$**, độ trễ suy luận $\approx 8\text{ms}$; Bảng Feature Importance và so sánh với LSTM. |
+| **Dự Báo Phụ Tải Đa Biến** | `Gradient Boosting (GBM)` | Huấn luyện với **13 đặc trưng đa biến** (chu kỳ giờ/ngày, nhiệt ẩm vi khí hậu, trạng thái thiết bị); Đạt **$R^2 = 0.9607$**, **$MAPE = 4.69\%$**, độ trễ suy luận $\approx 8\text{ms}$; Mô hình Champion duy nhất được tinh gọn đưa vào sản xuất. |
 | **Phát Hiện Dị Thường Thiết Bị** | `Isolation Forest` | Học máy không giám sát phát hiện thiết bị tiêu thụ điện bất thường, tính toán **Anomaly Score (0.00 – 1.00)**; Nhận diện sớm nguy cơ chập cháy rơ-le hoặc rò rỉ điện. |
 | **Dự Báo Hiện Diện Sinh Viên** | `Random Forest Classifier` | Dự báo xác suất có mặt sinh viên trong phòng (độ chính xác ~89.2%); Đưa ra danh sách phòng trống đang bật thiết bị để tối ưu hóa năng lượng. |
 | **Đề Xuất & Tự Động Hóa** | `Deterministic Rule Engine` | Quản lý vòng đời khuyến nghị tự động hóa (Generated ➔ Pending ➔ Accepted ➔ Executed); Tự động tắt thiết bị khi phòng không có người sau 30 phút. |
@@ -138,7 +136,7 @@ Hệ thống **SmartDorm Enterprise** được tổ chức thành 4 phân hệ l
 |---|---|
 | **Frontend** | Next.js 16 (App Router), TypeScript, TailwindCSS, Lucide Icons, Recharts, Zustand |
 | **Backend API** | NestJS 10, TypeScript, Prisma ORM, Socket.IO, MQTT Client, Swagger UI, Nest Throttler |
-| **AI / ML Service**| FastAPI, Python 3.11, LightGBM / Scikit-Learn, PyTorch (LSTM), Joblib, Pandas, NumPy |
+| **AI / ML Service**| FastAPI, Python 3.11, Scikit-Learn Champion GBM, Isolation Forest, Joblib, Pandas, NumPy |
 | **Database** | PostgreSQL 16 (Relational/RBAC), InfluxDB 2.7 (Time-series telemetry), SQLite (Dev) |
 | **IoT / Firmware** | C++ ESP32 Firmware, Wokwi Digital Twin Simulator, Mosquitto MQTT Broker |
 | **DevOps & Tooling**| Docker, Docker Compose, Jest (Automated Testing), Git |
@@ -153,10 +151,20 @@ Hệ thống **SmartDorm Enterprise** được tổ chức thành 4 phân hệ l
 ```
 *Tập lệnh sẽ tự động kiểm tra cổng mạng, khởi động Mosquitto MQTT, FastAPI ML Service, NestJS Backend và Next.js Frontend.*
 
-### Cách 2: Khởi động qua Docker Compose
+### Cách 2: Khởi động qua Docker Compose (Hoặc Triển Khai Cloud VPS)
 ```bash
-docker compose up -d --build
+# Trên máy tính cục bộ hoặc Cloud VPS Ubuntu 22.04 LTS:
+cp .env.docker.example .env.docker
+docker compose --env-file .env.docker up -d --build
+docker exec smartdorm-backend npx ts-node prisma/seed-demo.ts
 ```
+> Chi tiết xem cẩm nang triển khai VPS Cloud: **[HUONG_DAN_THUE_VA_CAI_DAT_VPS_CLOUD.md](HUONG_DAN_THUE_VA_CAI_DAT_VPS_CLOUD.md)** hoặc chạy script tự động 1-click **[deploy_vps.sh](deploy_vps.sh)**.
+>
+> 📁 **Tài liệu & Kịch bản Nghiệm thu Đồ án:**
+> * 🎬 **[KICH_BAN_QUAY_CLIP_DEMO_VA_CHUP_ANH_MINH_CHUNG.md](KICH_BAN_QUAY_CLIP_DEMO_VA_CHUP_ANH_MINH_CHUNG.md)**: Kịch bản từng giây quay video demo và bảng checklist 5 góc chụp ảnh phần cứng minh chứng.
+> * 🛠️ **[HUONG_DAN_LAP_RAP_PHAN_CUNG_CHI_TIET.md](HUONG_DAN_LAP_RAP_PHAN_CUNG_CHI_TIET.md)**: Cẩm nang đấu nối phần cứng thực tế 0% hàn, Active-LOW cho ESP32 và bo Relay 4 kênh.
+> * 📄 **[baocao.docx](baocao.docx)** & **[baocao.pdf](baocao.pdf)**: Thuyết minh Đồ án / Khóa luận tốt nghiệp chuẩn Khoa CNTT (5 Chương, đầy đủ minh chứng).
+> * 🖼️ **[Poster_SmartDorm_KhoaCNTT.pptx](Poster_SmartDorm_KhoaCNTT.pptx)**: Poster bảo vệ đồ án kích thước chuẩn khổ A0 Khoa CNTT.
 
 ### Cách 3: Khởi động từng phân hệ thủ công
 

@@ -57,43 +57,54 @@ export const useIntelligenceStore = create<IntelligenceState>()(
         const rec = get().recommendations.find((r) => r.id === id);
         let msg = 'Đã thực thi khuyến nghị thành công.';
 
-        // Determine target room from recommendation title / plan
-        let targetRoom = 'room-101';
-        const textToCheck = `${rec?.title || ''} ${rec?.description || ''} ${rec?.executionPlan?.[0]?.target || ''}`;
+        // Determine target room from recommendation title / plan / location
+        let targetRoom = '101';
+        const textToCheck = `${rec?.title || ''} ${rec?.description || ''} ${rec?.executionPlan?.[0]?.target || ''} ${rec?.location || ''}`.toLowerCase();
         if (textToCheck.includes('204')) targetRoom = '204';
         else if (textToCheck.includes('301')) targetRoom = '301';
-        else if (textToCheck.includes('101')) targetRoom = '101';
+        else if (textToCheck.includes('103')) targetRoom = '103';
+        else targetRoom = '101';
 
+        const isGasOrFanRec = id.includes('001') || textToCheck.includes('quạt') || textToCheck.includes('gas') || textToCheck.includes('khí') || textToCheck.includes('cooling');
 
         try {
-          // 1. Real backend recommendation accept
-          await api.post(`/intelligence/recommendations/${id}/accept`, {
+          // 1. Real backend recommendation accept (with automated MQTT action execution)
+          const res = await api.post(`/intelligence/recommendations/${id}/accept`, {
             executeAction: true,
           });
 
-          // 2. Real command pattern executions to turn off devices in room & broadcast to student portal
-          await api.post(`/devices/room/${targetRoom}/command`, {
-            deviceType: 'LIGHT',
-            action: 'off',
-          }).catch(() => {});
-
-          await api.post(`/devices/room/${targetRoom}/command`, {
-            deviceType: 'FAN',
-            action: 'off',
-          }).catch(() => {});
-
-          msg = `Đã phát lệnh MQTT ngắt nguồn phòng ${targetRoom} & ghi log Command Pattern thành công.`;
-        } catch (e: any) {
-          // Fallback command execution
-          try {
+          // 2. Direct command confirmation to ensure hardware immediately responds
+          if (isGasOrFanRec) {
+            await api.post(`/devices/room/${targetRoom}/command`, {
+              deviceType: 'FAN',
+              action: 'on',
+            }).catch(() => {});
+            msg = `Đã phát lệnh MQTT kích hoạt Quạt thông gió P.${targetRoom} (Bảo đảm an toàn PCCC).`;
+          } else {
             await api.post(`/devices/room/${targetRoom}/command`, {
               deviceType: 'LIGHT',
               action: 'off',
-            });
+            }).catch(() => {});
             await api.post(`/devices/room/${targetRoom}/command`, {
               deviceType: 'FAN',
               action: 'off',
-            });
+            }).catch(() => {});
+            msg = `Đã phát lệnh MQTT ngắt tiếp điểm rơ-le phòng ${targetRoom} thành công.`;
+          }
+        } catch (e: any) {
+          // Fallback command execution
+          try {
+            if (isGasOrFanRec) {
+              await api.post(`/devices/room/${targetRoom}/command`, {
+                deviceType: 'FAN',
+                action: 'on',
+              });
+            } else {
+              await api.post(`/devices/room/${targetRoom}/command`, {
+                deviceType: 'LIGHT',
+                action: 'off',
+              });
+            }
           } catch {}
           msg = `Đã gửi lệnh điều khiển phần cứng cho: "${rec?.title || id}"`;
         }
@@ -259,7 +270,7 @@ export const useIntelligenceStore = create<IntelligenceState>()(
       },
     }),
     {
-      name: 'smartdorm-intelligence-store-v3',
+      name: 'smartdorm-intelligence-store-v4',
       storage: createJSONStorage(() => localStorage),
     }
   )

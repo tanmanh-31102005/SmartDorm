@@ -171,7 +171,7 @@ export class IntelligenceService {
 
   /**
    * GET /api/intelligence/energy/comparison
-   * Returns Baseline vs Prophet vs LSTM benchmark comparison & curves.
+   * Returns Champion GBM model benchmark specifications & forecast curves.
    */
   async getForecastComparison(query: ForecastQueryDto): Promise<any> {
     return this.mlClient.compareForecastModels({

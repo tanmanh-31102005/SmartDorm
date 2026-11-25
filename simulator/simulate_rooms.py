@@ -21,10 +21,10 @@ import math
 from datetime import datetime
 
 # ==================== CẤU HÌNH ====================
-BROKER = "broker.emqx.io"   # Dùng public broker EMQX tốc độ cao
+BROKER = "broker.hivemq.com"   # Dùng public broker HiveMQ đồng bộ với Backend & ESP32
 # BROKER = "localhost"          # Uncomment khi có Mosquitto local
 PORT = 1883
-NUM_ROOMS = 20         # Số phòng giả lập (tăng lên 100 khi cần load test)
+NUM_ROOMS = 10         # Số phòng giả lập
 PUBLISH_INTERVAL = 3   # Giây giữa mỗi lần gửi dữ liệu
 
 BUILDINGS = ["A", "B", "C"]
@@ -45,12 +45,11 @@ class RoomSimulator:
         self.room_num = room_num
         self.topic_base = f"dormitory/{building}/{floor}/{room_num}"
 
-        # Trạng thái thiết bị & năng lượng
+        # Trạng thái thiết bị
         self.light_on   = random.choice([True, False])
         self.fan_on     = random.choice([True, False])
         self.door_open  = False
         self.alarm      = False
-        self.energy_kwh = random.uniform(5.0, 25.0) # Điện tích lũy ban đầu
         self.is_occupied = self.light_on or self.fan_on
 
         # Biến môi trường ban đầu (dao động xung quanh giá trị nền)
@@ -61,8 +60,11 @@ class RoomSimulator:
         # Đếm chu kỳ để tạo sự kiện ngẫu nhiên
         self.cycle = 0
 
-        # MQTT client riêng cho mỗi phòng
-        self.client = mqtt.Client(client_id=f"sim-{room_id}", clean_session=True)
+        # MQTT client riêng cho mỗi phòng (Tương thích cả paho-mqtt v1 & v2)
+        try:
+            self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=f"sim-{room_id}", clean_session=True)
+        except (AttributeError, TypeError):
+            self.client = mqtt.Client(client_id=f"sim-{room_id}", clean_session=True)
         self.client.on_connect    = self._on_connect
         self.client.on_message    = self._on_message
         self.client.on_disconnect = self._on_disconnect
@@ -125,22 +127,6 @@ class RoomSimulator:
         if not self.fan_on and self.light_on:
             temperature += 1.5
 
-        # Tính toán công suất tiêu thụ điện (W)
-        # 3 đèn (20W mỗi đèn) + quạt (60W) + standby (5W)
-        power_w = 5.0
-        if self.light_on:
-            power_w += 60.0
-        if self.fan_on:
-            power_w += 60.0
-
-        # Mô phỏng Device Anomaly (xác suất 0.5% - dòng tải tăng bất thường)
-        if random.random() < 0.005:
-            power_w += random.uniform(80.0, 150.0)
-            print(f"  ⚡ [{self.room_num}] ANOMALOUS POWER SPIKE: {power_w:.1f}W")
-
-        # Tích lũy điện năng kWh theo interval (3s / 3600h = 0.000833h)
-        self.energy_kwh += (power_w * (PUBLISH_INTERVAL / 3600.0)) / 1000.0
-
         # Random event: Gas leak (xác suất 1% mỗi chu kỳ)
         if random.random() < 0.01:
             gas_level = random.uniform(75.0, 95.0)
@@ -159,8 +145,6 @@ class RoomSimulator:
             "gas_level":       round(gas_level, 1),
             "gas_alert":       gas_level > 70.0,
             "temp_alert":      temperature > 38.0,
-            "powerW":          round(power_w, 1),
-            "energyKwh":       round(self.energy_kwh, 4),
             "occupancySignal": self.light_on or self.fan_on,
             "light_1":         self.light_on,
             "light_2":         self.light_on,
@@ -244,14 +228,27 @@ class RoomSimulator:
 
 # ==================== MAIN ====================
 def create_rooms(num: int) -> list:
-    """Tạo danh sách phòng giả lập (Bắt đầu từ Phòng 102, nhường Phòng 101 cho ESP32 Wokwi thật)"""
+    """Tạo danh sách phòng giả lập (Ưu tiên các phòng cốt lõi có trong Database, nhường Phòng 101 cho ESP32 phần cứng)"""
+    core_rooms = [
+        {"building": "A", "floor": 1, "room": "102"},
+        {"building": "A", "floor": 1, "room": "103"},
+        {"building": "B", "floor": 2, "room": "204"},
+        {"building": "C", "floor": 3, "room": "301"},
+    ]
     rooms = []
-    for i in range(num):
-        building  = BUILDINGS[i % len(BUILDINGS)]
-        floor     = FLOORS[(i // len(BUILDINGS)) % len(FLOORS)]
-        room_num  = str(100 + (i % 19) + 2)  # Phòng 102 -> 120 (Phòng 101 dành riêng cho ESP32 Wokwi)
-        room_id   = f"{building}{floor}{room_num}"
-        rooms.append(RoomSimulator(room_id, building, floor, room_num))
+    # 1. Thêm các phòng cốt lõi trong DB
+    for cr in core_rooms:
+        room_id = f"{cr['building']}{cr['floor']}{cr['room']}"
+        rooms.append(RoomSimulator(room_id, cr['building'], cr['floor'], cr['room']))
+
+    # 2. Bổ sung thêm các phòng ảo khác nếu num > len(core_rooms)
+    extra = max(0, num - len(core_rooms))
+    for i in range(extra):
+        b = BUILDINGS[i % len(BUILDINGS)]
+        f = FLOORS[(i // len(BUILDINGS)) % len(FLOORS)]
+        r = str(100 + (i % 15) + 5)
+        room_id = f"{b}{f}{r}"
+        rooms.append(RoomSimulator(room_id, b, f, r))
     return rooms
 
 

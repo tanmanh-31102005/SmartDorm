@@ -182,10 +182,10 @@ export default function OccupancyPredictionPage() {
         />
 
         <MetricCard
-          label="PHÒNG TRỐNG CẦN TẮT ĐIỆN"
+          label="PHÒNG TRỐNG CẦN TẮT THIẾT BỊ"
           value={`0${vacantRoomsCount} Phòng`}
           subValue="Xác suất Zero Occupancy > 95%"
-          tag="Lãng phí điện"
+          tag="Chưa ngắt tải"
           tagVariant={vacantRoomsCount > 0 ? 'warning' : 'neutral'}
           icon={<Zap className="w-4 h-4 text-amber-700" />}
           iconBg="bg-amber-50 text-amber-700"
@@ -193,11 +193,11 @@ export default function OccupancyPredictionPage() {
         />
 
         <MetricCard
-          label="TIẾT KIỆM KHI TỐI ƯU HVAC"
-          value="7.3 Tr ₫ / tháng"
-          change={{ value: '-108 kWh', trend: 'down', label: 'mỗi ngày' }}
-          subValue="Chế độ ECO & Standby"
-          tag="Green Campus"
+          label="TỐI ƯU RƠ-LE PHÒNG TRỐNG"
+          value="14.2 giờ / ngày"
+          change={{ value: '-35%', trend: 'down', label: 'thời gian chạy rỗng' }}
+          subValue="Tự ngắt quạt & đèn qua RFID"
+          tag="Tự Động Hóa"
           tagVariant="success"
           icon={<Sparkles className="w-4 h-4 text-emerald-700" />}
           iconBg="bg-emerald-50 text-emerald-700"
@@ -224,7 +224,7 @@ export default function OccupancyPredictionPage() {
             </span>
             <span className="flex items-center gap-1.5 text-emerald-700">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
-              Công suất điện tương ứng (kW)
+              Tải rơ-le thiết bị đang bật
             </span>
           </div>
         </div>
@@ -245,8 +245,8 @@ export default function OccupancyPredictionPage() {
                   fontWeight: 600,
                 }}
                 formatter={(val: any, name: any) => [
-                  name === 'occupancyPercent' ? `${val}% (~${Math.round(val * 8.42)} SV)` : `${val} kW`,
-                  name === 'occupancyPercent' ? 'Tỷ lệ có mặt' : 'Công suất tiêu thụ',
+                  name === 'occupancyPercent' ? `${val}% (~${Math.round(val * 8.42)} SV)` : `${val} rơ-le`,
+                  name === 'occupancyPercent' ? 'Tỷ lệ có mặt' : 'Rơ-le đang bật',
                 ]}
               />
               <Bar dataKey="occupancyPercent" radius={[6, 6, 0, 0]} name="occupancyPercent">

@@ -41,11 +41,20 @@ cd SmartDorm_SourceCode
 ```
 
 ### Bước 2: Chạy Toàn Bộ Hệ Thống
-```bash
-# Windows (PowerShell)
-.\start.ps1
 
-# Hoặc Docker Compose trực tiếp
+**Cách 1 (Khuyến nghị cho Windows — Chạy trực tiếp qua PowerShell):**
+```powershell
+# Chạy script tự động kiểm tra môi trường, giải phóng cổng và mở 4 cửa sổ song song
+.\start.ps1
+```
+> Script `start.ps1` sẽ tự động:
+> 1. Kiểm tra Node.js, npm, Python 3.10+
+> 2. Giải phóng các cổng 3001, 3000, 8000 nếu đang bị chiếm
+> 3. Khởi tạo CSDL SQLite `dev.db` và seed dữ liệu mẫu
+> 4. Khởi chạy Backend NestJS (Port 3001), ML FastAPI (Port 8000), Frontend Next.js (Port 3000), và MQTT Room Simulator.
+
+**Cách 2 (Triển khai bằng Docker Compose):**
+```bash
 docker compose up -d
 
 # Theo dõi logs
@@ -115,16 +124,17 @@ npm run start:dev
 
 **Cấu hình `.env`:**
 ```env
-DATABASE_URL=file:./prisma/dev.db
-JWT_SECRET=your_jwt_secret_here
+DATABASE_URL="file:./dev.db"
+JWT_SECRET=<YOUR_DEV_OR_PROD_JWT_SECRET>
 JWT_EXPIRES_IN=7d
-MQTT_BROKER_URL=mqtt://localhost:1883
+MQTT_BROKER_URL=mqtt://broker.hivemq.com:1883
 ML_SERVICE_URL=http://localhost:8000
 INFLUXDB_URL=http://localhost:8086
-INFLUXDB_TOKEN=smart-dormitory-super-secret-token-12345
+INFLUXDB_TOKEN=<YOUR_INFLUXDB_TOKEN>
 INFLUXDB_ORG=smart-dormitory
 INFLUXDB_BUCKET=smart-dormitory-raw
 PORT=3001
+FRONTEND_URL=http://localhost:3000
 ```
 
 ### 3.2 ML Service (FastAPI)
@@ -294,7 +304,7 @@ mosquitto_pub -h localhost -p 1883 \
 **Bucket:** `smart-dormitory-raw`  
 **Organization:** `smart-dormitory`  
 **Token:** `smart-dormitory-super-secret-token-12345`  
-**Retention:** 30 ngày
+**Retention:** 30 ngày (Raw Bucket) | 180 ngày cho Feature Store Huấn Luyện AI (qua CSDL quan hệ / Downsampled Bucket)
 
 **Kiểm tra dữ liệu qua Flux:**
 ```flux
@@ -395,7 +405,7 @@ curl http://localhost:8086/health
 # 4. Đăng nhập Admin
 curl -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@smartdorm.com","password":"admin123"}'
+  -d '{"email":"admin@ktx.edu.vn","password":"admin123"}'
 # Expect: {"access_token": "eyJ..."}
 ```
 
@@ -468,3 +478,90 @@ cp backup/dev_20260826.db backend/prisma/dev.db
 # PostgreSQL
 cat backup/pg_20260826.sql | docker exec -i smartdorm-postgres psql -U smartdorm smartdorm_db
 ```
+
+---
+
+## 12. Hướng Dẫn Thuê & Triển Khai Cloud VPS Hoàn Chỉnh (Cloud VPS Deployment Sizing & Setup)
+
+Dành cho sinh viên và quản trị viên chuẩn bị đưa toàn bộ hệ thống SmartDorm lên Cloud VPS trong tuần này.
+
+### 12.1 Định Mức Cấu Hình VPS Cloud Khuyến Nghị
+
+Dựa trên đo đạc tài nguyên thực tế của 6 container vi dịch vụ:
+
+| Tiêu Chí | Cấu Hình Tối Thiểu (Budget) | Cấu Hình Khuyến Nghị (Production) | Ghi Chú Kỹ Thuật |
+|---|---|---|---|
+| **Hệ Điều Hành** | Ubuntu 22.04 / 24.04 LTS 64-bit | Ubuntu 22.04 / 24.04 LTS 64-bit | HĐH Linux Server chuẩn hóa cho Docker |
+| **CPU** | 2 vCPU | **2 – 4 vCPU** | Xử lý đa luồng NestJS, ML FastAPI & InfluxDB |
+| **Bộ Nhớ RAM** | 2 GB RAM (Tạo 3GB Swap) | **4 GB RAM (Tạo 2GB Swap)** | Chạy mượt mà 6 containers không bị OOM |
+| **Ổ Cứng (SSD)** | 30 GB SSD | **40 – 50 GB NVMe SSD** | Đủ cho Docker images, DB data & InfluxDB 30d |
+| **Địa Chỉ IP** | 1 IPv4 Public Tĩnh | 1 IPv4 Public Tĩnh | **Bắt buộc có IPv4 Public** để ESP32 kết nối MQTT |
+| **Băng Thông** | 100 Mbps (Không giới hạn) | 100 – 200 Mbps (Không giới hạn) | Telemetry IoT 3s/lần tiêu thụ < 5 KB/s |
+| **Chi Phí Ước Tính**| ~80.000 – 120.000 ₫/tháng | ~150.000 – 250.000 ₫/tháng | Phù hợp ngân sách sinh viên làm đồ án |
+
+### 12.2 Nhà Cung Cấp VPS Uy Tín Tại Việt Nam & Quốc Tế
+- **Nhà cung cấp trong nước (Tốc độ cao, thanh toán Momo/VNPAY):**
+  - **Vietnix:** Gói *Cloud VPS Basic 2* (2 Core, 4GB RAM, 40GB SSD) ~180k/tháng hoặc *VPS Giá Rẻ 2* (2 Core, 2GB RAM) ~90k/tháng.
+  - **TinoHost:** Gói *VPS Pro 2* (2 Core, 4GB RAM, 50GB NVMe) ~199k/tháng.
+  - **CloudFly / BKNS / VietHost:** Các gói 2 vCPU - 2GB/4GB RAM.
+- **Nhà cung cấp quốc tế (Datacenter Singapore/Tokyo):**
+  - **Hetzner Cloud:** Gói *CPX21* (3 vCPU, 4GB RAM, 80GB SSD) ~7 EUR/tháng.
+  - **Vultr / DigitalOcean:** Gói *Regular Cloud Compute* (2 vCPU, 4GB RAM) ~24$/tháng.
+
+### 12.3 Quy Trình 5 Bước Triển Khai Lên VPS Trong 15 Phút
+
+#### Bước 1: Kết nối SSH & Cập nhật hệ thống
+```bash
+ssh root@<IP_VPS_CUA_BAN>
+apt update && apt upgrade -y
+apt install -y git curl ufw
+```
+
+#### Bước 2: Thiết lập Swap RAM (Chống tràn bộ nhớ)
+```bash
+fallocate -l 3G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
+#### Bước 3: Mở tường lửa (Firewall UFW)
+```bash
+ufw allow 22/tcp      # SSH
+ufw allow 80/tcp      # HTTP Web
+ufw allow 443/tcp     # HTTPS Web & WSS
+ufw allow 1883/tcp    # MQTT Broker (Cho ESP32 phần cứng kết nối từ xa)
+ufw enable
+```
+
+#### Bước 4: Cài đặt Docker & Docker Compose
+```bash
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh
+docker compose version
+```
+
+#### Bước 5: Clone mã nguồn & Khởi chạy hệ thống
+```bash
+git clone https://github.com/tanmanh-31102005/SmartDorm_SourceCode.git /app/smartdorm
+cd /app/smartdorm
+
+# Tạo file biến môi trường docker
+cp .env.docker.example .env.docker
+
+# Khởi chạy toàn bộ hệ thống bằng Docker Compose
+docker compose --env-file .env.docker up -d --build
+
+# Nạp dữ liệu mẫu
+docker exec smartdorm-backend npx ts-node prisma/seed-demo.ts
+```
+
+#### Bước 6: Trỏ Firmware ESP32 Về VPS
+Trong `hardware/src/main.cpp`, cập nhật địa chỉ IP của VPS:
+```cpp
+const char* MQTT_BROKER_PRIMARY = "<IP_VPS_CUA_BAN>"; // Ví dụ: "103.123.45.67"
+const int   MQTT_PORT           = 1883;
+```
+ESP32 ở bất cứ đâu có WiFi (tại nhà, KTX, giảng đường) sẽ kết nối thẳng về Cloud VPS của bạn!
+

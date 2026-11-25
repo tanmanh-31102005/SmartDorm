@@ -31,7 +31,7 @@
 **Request Body:**
 ```json
 {
-  "email": "admin@smartdorm.com",
+  "email": "admin@ktx.edu.vn",
   "password": "admin123"
 }
 ```
@@ -41,9 +41,9 @@
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
-    "id": "cla1b2c3d4",
-    "email": "admin@smartdorm.com",
-    "fullName": "Admin SmartDorm",
+    "id": "cmvj0ajjj000pfrtqny0gztmn",
+    "email": "admin@ktx.edu.vn",
+    "fullName": "Nguyễn Tấn Mạnh",
     "role": "ADMIN",
     "studentId": "ADMIN001",
     "roomId": null
@@ -56,17 +56,32 @@
 ---
 
 ### POST `/auth/register`
-**Mô tả:** Đăng ký tài khoản sinh viên mới
+**Mô tả:** Đăng ký tài khoản sinh viên mới (Hệ thống tự động gán role `STUDENT` và tự sinh mã thẻ RFID chuẩn 8 hex UID)
 
 **Request Body:**
 ```json
 {
-  "studentId": "SV099",
-  "fullName": "Lê Văn C",
-  "email": "levanc@student.edu.vn",
+  "studentId": "523123456",
+  "fullName": "Mạnh Nguyễn",
+  "email": "523123456@student.edu.vn",
   "password": "password123",
   "phone": "0901234567",
-  "rfidCardId": "CARD_NEW001"
+  "roomId": "optional_room_id"
+}
+```
+
+**Response 201:**
+```json
+{
+  "message": "Đăng ký tài khoản thành công!",
+  "user": {
+    "id": "cmvj2k6ju0009shrtz3zbmyg2",
+    "studentId": "523123456",
+    "fullName": "Mạnh Nguyễn",
+    "email": "523123456@student.edu.vn",
+    "role": "STUDENT",
+    "rfidCardId": "CARD_207B92E2"
+  }
 }
 ```
 
@@ -74,23 +89,23 @@
 
 ### GET `/auth/profile`
 **Auth:** JWT required  
-**Mô tả:** Lấy thông tin người dùng hiện tại
+**Mô tả:** Lấy thông tin người dùng hiện tại kèm thông tin phòng lưu trú thời gian thực
 
 **Response 200:**
 ```json
 {
-  "id": "cla1b2c3d4",
-  "email": "student1@smartdorm.com",
+  "id": "cmvj0ajjj000pfrtqny0gztmn",
+  "email": "sv001@student.edu.vn",
   "fullName": "Nguyễn Văn An",
   "role": "STUDENT",
-  "studentId": "SV001",
+  "studentId": "SV2024001",
   "rfidCardId": "CARD_A1B2C3D4",
   "phone": "0901234567",
   "roomId": "clroom001",
   "room": {
     "roomNumber": "101",
     "floor": 1,
-    "building": { "name": "Tòa A" }
+    "building": { "name": "A" }
   }
 }
 ```
@@ -177,6 +192,32 @@
     }
   }
 ]
+```
+
+### GET `/rooms/residents/all`
+**Auth:** JWT (ADMIN)  
+**Mô tả:** Lấy danh sách toàn bộ cư dân sinh viên kèm phòng đang ở phục vụ phân bổ phòng
+
+### PATCH `/rooms/residents/:userId/assign-room`
+**Auth:** ADMIN only  
+**Mô tả:** Phân bổ sinh viên vào phòng KTX hoặc gỡ sinh viên khỏi phòng (truyền `roomId: null`). Tự động bảo đảm mã thẻ RFID tồn tại.
+
+**Request Body:**
+```json
+{
+  "roomId": "cmsvuikqr0008oxv0v03i2odo"  // hoặc null để gỡ phòng
+}
+```
+
+**Response 200:**
+```json
+{
+  "id": "cmvj2k6ju0009shrtz3zbmyg2",
+  "fullName": "Mạnh Nguyễn",
+  "studentId": "523123456",
+  "roomId": "cmsvuikqr0008oxv0v03i2odo",
+  "rfidCardId": "CARD_207B92E2"
+}
 ```
 
 ### GET `/rooms/:id`
@@ -427,10 +468,11 @@ Hoặc (chỉ DOOR_LOCK):
   "topRecommendations": [...],
   "modelHealth": [
     {
-      "modelName": "energy-prophet",
+      "modelName": "energy-gbm-forecaster",
       "status": "ACTIVE",
-      "inferenceMs": 12,
-      "mae": 28.73
+      "inferenceMs": 8,
+      "mae": 8.28,
+      "r2Score": 0.9607
     }
   ],
   "occupancySummary": {
@@ -443,7 +485,7 @@ Hoặc (chỉ DOOR_LOCK):
 
 ### GET `/intelligence/forecast`
 **Auth:** ADMIN  
-**Query:** `roomId`, `horizonHours` (default: 24), `model` (`auto` | `prophet` | `lstm` | `baseline`)
+**Query:** `roomId`, `horizonHours` (default: 24), `model` (`gbm`)
 
 ### GET `/intelligence/anomalies`
 **Auth:** ADMIN  
@@ -528,9 +570,9 @@ Hoặc (chỉ DOOR_LOCK):
 }
 ```
 
-### POST `/ml/forecast/energy`
-### POST `/ml/forecast/lstm`
-### POST `/ml/forecast/compare`
+### POST `/ml/forecast/energy` (Champion GBM)
+### POST `/ml/forecast/gbm` (Direct GBM Endpoint)
+### POST `/ml/forecast/compare` (GBM Performance Benchmark)
 ### POST `/ml/anomaly/device`
 ### POST `/ml/predict/occupancy`
 ### GET `/ml/model-status`

@@ -2,6 +2,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import api from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { Breadcrumbs, BreadcrumbItem } from '@/components/ui/Breadcrumbs';
 import { 
@@ -61,12 +62,38 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     const parsed = JSON.parse(userData);
     setUser(parsed);
 
+    // Sync live profile to reflect room changes made by Admin immediately
+    async function syncProfile() {
+      try {
+        const res = await api.get('/auth/profile');
+        if (res.data) {
+          setUser(res.data);
+          const currentLocal = JSON.parse(localStorage.getItem('user') || '{}');
+          localStorage.setItem('user', JSON.stringify({ ...currentLocal, ...res.data }));
+        }
+      } catch (err) {}
+    }
+    syncProfile();
+
+    function handleUserUpdate() {
+      const refreshed = localStorage.getItem('user');
+      if (refreshed) {
+        try {
+          setUser(JSON.parse(refreshed));
+        } catch (e) {}
+      }
+    }
+    window.addEventListener('storage', handleUserUpdate);
+    window.addEventListener('userUpdated', handleUserUpdate);
+
     const socket = getSocket();
     socket.on('connect', () => setWsConnected(true));
     socket.on('disconnect', () => setWsConnected(false));
     setWsConnected(socket.connected);
 
     return () => {
+      window.removeEventListener('storage', handleUserUpdate);
+      window.removeEventListener('userUpdated', handleUserUpdate);
       socket.off('connect');
       socket.off('disconnect');
     };
@@ -95,7 +122,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         { href: '/student/dashboard', icon: LayoutDashboard, label: 'Bảng Điều Khiển' },
         { href: '/student/room', icon: DoorClosed, label: 'Thông Tin Phòng' },
         { href: '/student/devices', icon: Cpu, label: 'Thiết Bị Phòng' },
-        { href: '/student/energy', icon: Zap, label: 'Điện Năng Tiêu Thụ' },
       ],
     },
     {
@@ -122,7 +148,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     const mapLabel: Record<string, string> = {
       room: 'Thông Tin Phòng',
       devices: 'Thiết Bị Phòng',
-      energy: 'Điện Năng Tiêu Thụ',
       'access-history': 'Lịch Sử Ra Vào',
       alerts: 'Cảnh Báo',
       profile: 'Hồ Sơ Sinh Viên',
@@ -184,15 +209,27 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
           {/* Center: Room Badge & Status */}
           <div className="hidden md:flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs shadow-2xs">
-              <Home className="w-3.5 h-3.5 text-emerald-700" />
-              <span className="font-bold text-emerald-800">
-                {user?.room?.roomNumber ? `Phòng ${user.room.roomNumber}` : 'Phòng A-101'}
-              </span>
-              <span className="text-[10px] text-emerald-600 font-semibold border-l border-emerald-300 pl-2">
-                {user?.studentId || 'SV2024001'}
-              </span>
-            </div>
+            {user?.room?.roomNumber ? (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs shadow-2xs">
+                <Home className="w-3.5 h-3.5 text-emerald-700" />
+                <span className="font-bold text-emerald-800">
+                  Phòng {user.room.building?.name || 'A'}-{user.room.roomNumber}
+                </span>
+                <span className="text-[10px] text-emerald-600 font-semibold border-l border-emerald-300 pl-2">
+                  {user?.studentId || 'SV-KTX'}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-xs shadow-2xs">
+                <Home className="w-3.5 h-3.5 text-amber-700" />
+                <span className="font-bold text-amber-800">
+                  Chưa xếp phòng KTX
+                </span>
+                <span className="text-[10px] text-amber-600 font-semibold border-l border-amber-300 pl-2">
+                  {user?.studentId || 'SV-KTX'}
+                </span>
+              </div>
+            )}
 
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs">
               <span className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
@@ -389,7 +426,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           { href: '/student/dashboard', icon: LayoutDashboard, label: 'Trang Chủ' },
           { href: '/student/room', icon: DoorClosed, label: 'Phòng' },
           { href: '/student/devices', icon: Cpu, label: 'Thiết Bị' },
-          { href: '/student/energy', icon: Zap, label: 'Điện Năng' },
+          { href: '/student/access-history', icon: CreditCard, label: 'Ra Vào' },
           { href: '/student/alerts', icon: Bell, label: 'Cảnh Báo' },
         ].map((item) => {
           const Icon = item.icon;

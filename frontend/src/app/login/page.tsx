@@ -1,6 +1,6 @@
 'use client';
-import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, FormEvent, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
@@ -14,23 +14,50 @@ import {
   AlertCircle, 
   ArrowRight, 
   ShieldCheck, 
-  UserCheck, 
-  Sparkles,
   Radio,
   Cpu,
-  Send,
   KeyRound,
-  CheckCircle2
+  User,
+  Phone,
+  Home,
+  UserPlus,
+  LogIn
 } from 'lucide-react';
 
-export default function LoginPage() {
+interface RoomOption {
+  id: string;
+  roomNumber: string;
+  floor: number;
+  buildingName: string;
+}
+
+function LoginFormContent() {
   const router = useRouter();
-  const { success, error: toastError } = useToast();
+  const searchParams = useSearchParams();
+  const { success, error: toastError, info } = useToast();
   
-  const [email, setEmail] = useState('admin@ktx.edu.vn');
-  const [password, setPassword] = useState('admin123');
+  // Tab mode: 'login' or 'register'
+  const initialMode = searchParams.get('mode') === 'register' ? 'register' : 'login';
+  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
+
+  // Common Login fields
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+
+  // Registration specific fields
+  const [fullName, setFullName] = useState('');
+  const [studentId, setStudentId] = useState('');
+  const [emailPrefix, setEmailPrefix] = useState('');
+  const [roomId, setRoomId] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Rooms list for student room selection
+  const [rooms, setRooms] = useState<RoomOption[]>([]);
+
+  // State management
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,19 +67,55 @@ export default function LoginPage() {
   const [forgotStep, setForgotStep] = useState<'input' | 'sent'>('input');
   const [forgotLoading, setForgotLoading] = useState(false);
 
-  async function handleSubmit(e: FormEvent) {
+  // Fetch available rooms for registration dropdown
+  useEffect(() => {
+    async function fetchRooms() {
+      try {
+        const res = await api.get('/rooms');
+        if (Array.isArray(res.data)) {
+          const mapped = res.data.map((r: any) => ({
+            id: r.id,
+            roomNumber: r.roomNumber,
+            floor: r.floor,
+            buildingName: r.building?.name || 'A',
+          }));
+          setRooms(mapped);
+        }
+      } catch (err) {
+        // Rooms will simply be empty if offline
+      }
+    }
+    fetchRooms();
+  }, []);
+
+  // Handle Login submission
+  async function handleLoginSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const res = await api.post('/auth/login', { email, password });
+      const res = await api.post('/auth/login', { 
+        email: email.trim(), 
+        password: password 
+      });
       const { user } = res.data;
       const jwtToken = res.data.token || res.data.access_token;
       
-      localStorage.setItem('token', jwtToken);
-      localStorage.setItem('access_token', jwtToken);
-      localStorage.setItem('user', JSON.stringify(user));
+      if (rememberMe) {
+        localStorage.setItem('token', jwtToken);
+        localStorage.setItem('access_token', jwtToken);
+        localStorage.setItem('user', JSON.stringify(user));
+      } else {
+        sessionStorage.setItem('token', jwtToken);
+        sessionStorage.setItem('access_token', jwtToken);
+        sessionStorage.setItem('user', JSON.stringify(user));
+        // Still keep in localStorage for axios interceptor compatibility
+        localStorage.setItem('token', jwtToken);
+        localStorage.setItem('access_token', jwtToken);
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+
       success(`Chào mừng ${user.fullName || 'bạn'} quay trở lại!`, 'Đăng nhập thành công');
 
       if (user.role === 'STUDENT') {
@@ -61,55 +124,67 @@ export default function LoginPage() {
         router.push('/dashboard');
       }
     } catch (err: any) {
-      // Fallback mock login for demo when backend is offline
-      if (!err.response || err.code === 'ERR_NETWORK') {
-        let mockUser: any;
-        if (email.includes('student') || email.startsWith('sv')) {
-          mockUser = {
-            id: 'mock-sv-1',
-            studentId: 'SV2024001',
-            fullName: 'Nguyễn Văn An',
-            email: email,
-            role: 'STUDENT',
-            roomId: 'room-101',
-          };
-          localStorage.setItem('token', 'mock_student_jwt_token');
-          localStorage.setItem('user', JSON.stringify(mockUser));
-          success('Đăng nhập chế độ Demo Sinh Viên', 'Thông báo');
-          router.push('/student/dashboard');
-          return;
-        } else {
-          mockUser = {
-            id: 'mock-admin-1',
-            studentId: 'ADMIN001',
-            fullName: 'Quản Trị Viên',
-            email: email,
-            role: 'ADMIN',
-          };
-          localStorage.setItem('token', 'mock_admin_jwt_token');
-          localStorage.setItem('user', JSON.stringify(mockUser));
-          success('Đăng nhập chế độ Demo Quản Trị Viên', 'Thông báo');
-          router.push('/dashboard');
-          return;
-        }
-      }
-
-      const msg = err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại email hoặc mật khẩu.';
+      const msg = err.response?.data?.message || 'Email hoặc mật khẩu không đúng. Vui lòng thử lại.';
       setError(msg);
-      toastError(msg, 'Lỗi đăng nhập');
+      toastError(msg, 'Đăng nhập không thành công');
     } finally {
       setLoading(false);
     }
   }
 
-  function selectAccount(type: 'admin' | 'student') {
+  // Handle Register submission - registration is exclusively for students
+  async function handleRegisterSubmit(e: FormEvent) {
+    e.preventDefault();
     setError('');
-    if (type === 'admin') {
-      setEmail('admin@ktx.edu.vn');
-      setPassword('admin123');
-    } else {
-      setEmail('sv001@student.edu.vn');
-      setPassword('sinhvien123');
+
+    if (!emailPrefix.trim()) {
+      setError('Vui lòng nhập mã số sinh viên hoặc tên để tạo email.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Mật khẩu và xác nhận mật khẩu không trùng khớp.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Mật khẩu phải chứa ít nhất 6 ký tự.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const cleanPrefix = emailPrefix.replace(/@.*$/, '').trim();
+      const finalEmail = `${cleanPrefix}@student.edu.vn`.toLowerCase();
+
+      const payload: any = {
+        studentId: studentId.trim(),
+        fullName: fullName.trim(),
+        email: finalEmail,
+        password: password,
+        roomId: roomId ? roomId : undefined,
+      };
+
+      await api.post('/auth/register', payload);
+
+      // Do NOT auto-login. User must log in with their created account.
+      success(
+        `Đăng ký tài khoản thành công (${finalEmail})! Vui lòng nhập mật khẩu để đăng nhập.`, 
+        'Đăng ký thành công'
+      );
+      
+      // Switch to login tab and prefill email
+      setEmail(finalEmail);
+      setMode('login');
+      setPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Đăng ký thất bại. Email hoặc Mã sinh viên có thể đã được sử dụng.';
+      setError(msg);
+      toastError(msg, 'Lỗi đăng ký');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -160,17 +235,29 @@ export default function LoginPage() {
             </Link>
 
             {/* Value Proposition */}
-            <div className="mt-12 space-y-3">
+            <div className="mt-10 space-y-3">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-blue-900/60 text-blue-300 border border-blue-700/50">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Hệ Thống Trực Tuyến
+                Hệ Thống Xác Thực Trực Tuyến
               </span>
               <h1 className="text-2xl font-bold text-white tracking-tight leading-snug">
-                Quản Lý Ký Túc Xá <br />
-                <span className="text-blue-400">Thông Minh & An Toàn</span>
+                {mode === 'login' ? (
+                  <>
+                    Cổng Quản Trị & <br />
+                    <span className="text-blue-400">Không Gian Sinh Viên</span>
+                  </>
+                ) : (
+                  <>
+                    Đăng Ký Thành Viên <br />
+                    <span className="text-blue-400">Ký Túc Xá Thông Minh</span>
+                  </>
+                )}
               </h1>
               <p className="text-xs text-slate-300 leading-relaxed font-normal">
-                Tự động hóa cảm biến vi khí hậu, điều khiển thiết bị rơ-le qua MQTT và kiểm soát ra vào thẻ từ RFID.
+                {mode === 'login' 
+                  ? 'Đăng nhập để điều khiển rơ-le thiết bị phòng, theo dõi cảm biến DHT22/MQ-2 và giám sát an ninh ra vào thẻ RFID.'
+                  : 'Tạo tài khoản mới để trải nghiệm hệ sinh thái phòng thông minh IoT, theo dõi trạng thái thiết bị và nhận thông báo tức thời.'
+                }
               </p>
             </div>
           </div>
@@ -182,15 +269,15 @@ export default function LoginPage() {
                 <Radio className="w-3.5 h-3.5 text-emerald-400" />
                 <span className="text-slate-300 font-medium">MQTT Broker (1883)</span>
               </div>
-              <span className="text-emerald-400 font-mono text-[11px] font-semibold">Online</span>
+              <span className="text-emerald-400 font-mono text-[11px] font-semibold">Live Connected</span>
             </div>
 
             <div className="px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <Cpu className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-slate-300 font-medium">ESP32 Telemetry</span>
+                <span className="text-slate-300 font-medium">ESP32 Hardware Nodes</span>
               </div>
-              <span className="text-blue-400 font-mono text-[11px] font-semibold">1,186 Nodes</span>
+              <span className="text-blue-400 font-mono text-[11px] font-semibold">Active Ready</span>
             </div>
           </div>
 
@@ -198,49 +285,56 @@ export default function LoginPage() {
           <div className="relative z-10 pt-4 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
             <span className="flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              Bảo mật JWT & NVS
+              Bảo mật mã hóa JWT & bcrypt
             </span>
-            <span className="font-mono text-slate-400">v2.4</span>
+            <span className="font-mono text-slate-400">v2.4.0</span>
           </div>
         </div>
 
-        {/* Right Side: Clean Login Form */}
+        {/* Right Side: Clean Form with Tab Switcher */}
         <div className="lg:col-span-7 p-8 sm:p-10 flex flex-col justify-between bg-white">
           <div>
-            <div className="mb-6">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Đăng Nhập Cổng Quản Lý</h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Chọn tài khoản hoặc nhập email và mật khẩu của bạn
-              </p>
-            </div>
+            {/* Header & Tab Switcher */}
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                  {mode === 'login' ? 'Đăng Nhập Hệ Thống' : 'Đăng Ký Tài Khoản'}
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {mode === 'login' 
+                    ? 'Nhập email và mật khẩu của bạn để tiếp tục' 
+                    : 'Điền thông tin bên dưới để khởi tạo tài khoản mới'
+                  }
+                </p>
+              </div>
 
-            {/* Quick Demo Credentials Switcher */}
-            <div className="mb-6 p-1.5 bg-slate-100/80 rounded-xl flex items-center gap-1 border border-slate-200/60">
-              <button
-                type="button"
-                onClick={() => selectAccount('admin')}
-                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  email === 'admin@ktx.edu.vn'
-                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <ShieldCheck className={`w-4 h-4 ${email === 'admin@ktx.edu.vn' ? 'text-blue-700' : 'text-slate-400'}`} />
-                <span>Ban Quản Trị</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => selectAccount('student')}
-                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  email === 'sv001@student.edu.vn'
-                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <UserCheck className={`w-4 h-4 ${email === 'sv001@student.edu.vn' ? 'text-emerald-600' : 'text-slate-400'}`} />
-                <span>Sinh Viên KTX</span>
-              </button>
+              {/* Segmented Mode Switcher */}
+              <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+                <button
+                  type="button"
+                  onClick={() => { setMode('login'); setError(''); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    mode === 'login'
+                      ? 'bg-white text-blue-900 shadow-xs border border-slate-200'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Đăng Nhập</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setMode('register'); setError(''); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    mode === 'register'
+                      ? 'bg-white text-blue-900 shadow-xs border border-slate-200'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Đăng Ký</span>
+                </button>
+              </div>
             </div>
 
             {/* Error Alert */}
@@ -251,101 +345,299 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Email Đăng Nhập
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Mail className="w-4 h-4" />
+            {/* ================= LOGIN FORM ================= */}
+            {mode === 'login' ? (
+              <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Email Đăng Nhập
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      placeholder="name@ktx.edu.vn"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 outline-none focus:bg-white focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 transition-all font-medium placeholder:text-slate-400"
+                    />
                   </div>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="name@ktx.edu.vn"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 transition-all font-medium placeholder:text-slate-400"
-                  />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Mật Khẩu
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Lock className="w-4 h-4" />
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Mật Khẩu
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      placeholder="Nhập mật khẩu của bạn"
+                      className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 outline-none focus:bg-white focus:border-blue-700 focus:ring-2 focus:ring-blue-700/10 transition-all font-medium placeholder:text-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="••••••••"
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 transition-all font-medium placeholder:text-slate-400"
-                  />
+                </div>
+
+                {/* Remember me & Forgot Password */}
+                <div className="flex items-center justify-between pt-0.5 text-xs">
+                  <label className="flex items-center gap-2 text-slate-600 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-900 border-slate-300 focus:ring-blue-800"
+                    />
+                    <span>Ghi nhớ đăng nhập</span>
+                  </label>
+
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                    tabIndex={-1}
+                    onClick={() => {
+                      setForgotEmail(email);
+                      setForgotStep('input');
+                      setForgotOpen(true);
+                    }}
+                    className="font-semibold text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    Quên mật khẩu?
                   </button>
                 </div>
-              </div>
 
-              {/* Remember me & Forgot Password */}
-              <div className="flex items-center justify-between pt-0.5 text-xs">
-                <label className="flex items-center gap-2 text-slate-600 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded text-blue-900 border-slate-300 focus:ring-blue-800"
-                  />
-                  <span>Ghi nhớ</span>
-                </label>
-
+                {/* Submit Button */}
                 <button
-                  type="button"
-                  onClick={() => {
-                    setForgotEmail(email);
-                    setForgotStep('input');
-                    setForgotOpen(true);
-                  }}
-                  className="font-semibold text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 px-4 rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-900/10 disabled:opacity-50 mt-2"
                 >
-                  Quên mật khẩu?
+                  {loading ? (
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span>Đăng Nhập Vào Hệ Thống</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
-              </div>
+              </form>
+            ) : (
+              /* ================= REGISTER FORM ================= */
+              <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+                {/* Full name & Student ID */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Họ và Tên <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required
+                        placeholder="Nguyễn Tấn Mạnh"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 outline-none focus:bg-white focus:border-blue-700 font-medium"
+                      />
+                    </div>
+                  </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 px-4 rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-900/10 disabled:opacity-50 mt-2"
-              >
-                {loading ? (
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>Đăng Nhập Vào Hệ Thống</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Mã Số Sinh Viên (MSSV) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <ShieldCheck className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={studentId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setStudentId(val);
+                          // Auto sync with emailPrefix if user hasn't explicitly customized email
+                          if (!emailPrefix || emailPrefix === studentId) {
+                            setEmailPrefix(val);
+                          }
+                        }}
+                        required
+                        placeholder="Ví dụ: 52300000"
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 outline-none focus:bg-white focus:border-blue-700 font-medium"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email with fixed suffix & Room selection */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Email Sinh Viên <span className="text-red-500">*</span>
+                      <span className="text-slate-400 font-normal ml-1">(Chỉ cần nhập số)</span>
+                    </label>
+                    <div className="flex rounded-xl overflow-hidden border border-slate-300 focus-within:border-blue-700 focus-within:ring-2 focus-within:ring-blue-700/10 bg-slate-50 transition">
+                      <div className="pl-3 py-2 flex items-center pointer-events-none text-slate-400">
+                        <Mail className="w-3.5 h-3.5" />
+                      </div>
+                      <input
+                        type="text"
+                        value={emailPrefix}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/@.*$/, '').trim();
+                          setEmailPrefix(raw);
+                        }}
+                        required
+                        placeholder="52300000"
+                        className="w-full pl-2 pr-1 py-2 bg-transparent text-xs text-slate-900 outline-none font-medium placeholder:text-slate-400"
+                      />
+                      <div className="px-2.5 py-2 bg-slate-100 border-l border-slate-200 text-xs text-slate-600 font-semibold select-none flex items-center whitespace-nowrap">
+                        @student.edu.vn
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Phòng KTX Lưu Trú
+                    </label>
+                    <div className="relative">
+                      <Home className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <select
+                        value={roomId}
+                        onChange={(e) => setRoomId(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 outline-none focus:bg-white focus:border-blue-700 font-medium cursor-pointer"
+                      >
+                        <option value="">-- Chưa gán phòng (chọn sau) --</option>
+                        {rooms.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            Phòng {r.roomNumber} (Tòa {r.buildingName} - Tầng {r.floor})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Note about phone number */}
+                <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-100 text-[11px] text-blue-700 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                  <span>Số điện thoại & thẻ RFID sẽ được cập nhật trong <strong>Hồ Sơ Cá Nhân</strong> sau khi đăng nhập.</span>
+                </div>
+
+                {/* Password & Confirm Password */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Mật Khẩu
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        placeholder="Tối thiểu 6 ký tự"
+                        className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 outline-none focus:bg-white focus:border-blue-700 font-medium"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Xác Nhận Mật Khẩu
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        placeholder="Nhập lại mật khẩu"
+                        className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 outline-none focus:bg-white focus:border-blue-700 font-medium"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit Register Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 px-4 rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-900/10 disabled:opacity-50 mt-3"
+                >
+                  {loading ? (
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span>Tạo Tài Khoản & Tiếp Tục</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
           </div>
 
-          <div className="pt-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-            <span>Tài khoản demo đã sẵn sàng</span>
-            <Link href="/" className="text-blue-700 font-semibold hover:underline">
-              ← Về trang chủ
+          {/* Bottom Switch Link */}
+          <div className="pt-5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            {mode === 'login' ? (
+              <span>
+                Chưa có tài khoản?{' '}
+                <button
+                  type="button"
+                  onClick={() => { setMode('register'); setError(''); }}
+                  className="text-blue-700 font-bold hover:underline cursor-pointer"
+                >
+                  Đăng ký ngay
+                </button>
+              </span>
+            ) : (
+              <span>
+                Đã có tài khoản?{' '}
+                <button
+                  type="button"
+                  onClick={() => { setMode('login'); setError(''); }}
+                  className="text-blue-700 font-bold hover:underline cursor-pointer"
+                >
+                  Đăng nhập tại đây
+                </button>
+              </span>
+            )}
+
+            <Link href="/" className="text-slate-400 hover:text-slate-700 font-medium hover:underline">
+              ← Trang chủ
             </Link>
           </div>
         </div>
@@ -411,7 +703,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => {
-                success('Mật khẩu mẫu đã được khôi phục: admin123', 'Hoàn tất');
+                success('Mật khẩu mẫu đã được gửi tới email của bạn.', 'Hoàn tất');
                 setForgotOpen(false);
               }}
               className="w-full py-2 rounded-lg bg-blue-900 text-white text-xs font-bold hover:bg-blue-800 cursor-pointer"
@@ -424,3 +716,18 @@ export default function LoginPage() {
     </main>
   );
 }
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+          <div className="w-8 h-8 border-3 border-blue-900 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <LoginFormContent />
+    </Suspense>
+  );
+}
+

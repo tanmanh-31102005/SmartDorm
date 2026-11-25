@@ -13,10 +13,13 @@ RUN npm install --legacy-peer-deps
 COPY . .
 
 # Set build arguments and environment variables
+ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api
+ARG NEXT_PUBLIC_WS_URL=http://localhost:3001
+
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
-ENV NEXT_PUBLIC_API_URL=http://localhost:3001/api
-ENV NEXT_PUBLIC_WS_URL=http://localhost:3001
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 
 # Build Next.js in standalone mode
 RUN npm run build
@@ -28,6 +31,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN apk add --no-cache curl

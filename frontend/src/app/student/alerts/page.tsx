@@ -29,18 +29,6 @@ export default function StudentAlertsPage() {
   const [emergencyAlert, setEmergencyAlert] = useState<any | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const [monthlyBill, setMonthlyBill] = useState<{
-    kwh: number;
-    totalAmount: number;
-    perStudent: number;
-    month: string;
-  }>({
-    kwh: 126.0,
-    totalAmount: 284760,
-    perStudent: 71190,
-    month: `Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`,
-  });
-
   useEffect(() => {
     async function loadData() {
       try {
@@ -63,17 +51,6 @@ export default function StudentAlertsPage() {
               });
             }
           }
-        }
-
-        // Fetch monthly bill calculation
-        const billRes = await api.get(`/analytics/monthly-bill/101`);
-        if (billRes.data) {
-          setMonthlyBill({
-            kwh: billRes.data.kwhConsumed || 126.0,
-            totalAmount: billRes.data.totalVnd || 284760,
-            perStudent: billRes.data.perStudentVnd || 71190,
-            month: billRes.data.currentMonth || `Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`,
-          });
         }
       } catch (e) {
         console.warn('Student alerts load fallback', e);
@@ -128,12 +105,28 @@ export default function StudentAlertsPage() {
 
   const roomAlerts = [
     {
-      id: 'alt-bill',
-      type: 'BILLING',
-      title: `Thông báo tiền điện định kỳ ${monthlyBill.month}`,
-      description: `Phòng ${roomNumber} đã tiêu thụ ${monthlyBill.kwh} kWh điện. Tổng tiền phòng: ${monthlyBill.totalAmount.toLocaleString('vi-VN')} ₫. Tiền điện của bạn (chia 4): ${monthlyBill.perStudent.toLocaleString('vi-VN')} ₫. Hạn thanh toán: Ngày 10 hàng tháng.`,
-      time: 'Hôm nay',
+      id: 'alt-energy',
+      type: 'ENERGY',
+      title: '⚠️ [AI] Nhắc nhở tiết kiệm năng lượng KTX',
+      description: `Hệ thống AI ghi nhận phòng ${roomNumber} không có người nhưng Đèn & Quạt vẫn đang bật suốt 25 phút qua. Ước tính lãng phí 0.85 kWh (~1.920 VNĐ). Bạn có thể bấm nút tắt thiết bị ngay bên dưới:`,
+      time: '25 phút trước',
       isRead: false,
+    },
+    {
+      id: 'alt-billing',
+      type: 'BILLING',
+      title: '⚡ Hóa đơn tiền điện định kỳ tháng — Phòng ' + roomNumber,
+      description: `Tổng điện năng tiêu thụ tháng: 128.5 kWh (Đơn giá 2.260 đ/kWh). Tổng tiền phòng: 290.410 VNĐ (Chia bình quân 4 SV: 72.602 VNĐ/bạn). Vui lòng thanh toán trước ngày 10.`,
+      time: '00:00 Đầu tháng',
+      isRead: true,
+    },
+    {
+      id: 'alt-env',
+      type: 'INFO',
+      title: 'Giám sát an toàn vi khí hậu phòng',
+      description: `Hệ thống cảm biến DHT22 (Nhiệt/Ẩm) và MQ-2 (Khí gas) tại phòng ${roomNumber} đang hoạt động bình thường, không ghi nhận rủi ro.`,
+      time: 'Hôm nay',
+      isRead: true,
     },
     {
       id: 'alt-1',
@@ -160,7 +153,7 @@ export default function StudentAlertsPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">Thông Báo & Cảnh Báo Phòng {roomNumber}</h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Các thông báo hóa đơn điện định kỳ từ BQL và cảnh báo an toàn cảm biến trong phòng của bạn.
+            Thông báo an ninh ra vào, kiểm tra vi khí hậu và cảnh báo an toàn cảm biến trong phòng của bạn.
           </p>
         </div>
 
@@ -230,19 +223,20 @@ export default function StudentAlertsPage() {
           <div
             key={alt.id}
             className={`admin-card p-4.5 flex items-start gap-3.5 transition-all ${
-              alt.type === 'BILLING' ? 'bg-blue-50/40 border-blue-200' : ''
+              alt.type === 'BILLING' ? 'bg-blue-50/40 border-blue-200' : alt.type === 'ENERGY' ? 'bg-amber-50/40 border-amber-300' : ''
             }`}
           >
             <div className={`p-2.5 rounded-xl flex-shrink-0 mt-0.5 ${
-              alt.type === 'BILLING' ? 'bg-blue-100 text-blue-900' : 'bg-slate-100 text-slate-700'
+              alt.type === 'BILLING' ? 'bg-blue-100 text-blue-900' : alt.type === 'ENERGY' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-700'
             }`}>
-              {alt.type === 'BILLING' ? <DollarSign className="w-5 h-5" /> : <Info className="w-5 h-5" />}
+              {alt.type === 'BILLING' ? <DollarSign className="w-5 h-5" /> : alt.type === 'ENERGY' ? <Zap className="w-5 h-5" /> : <Info className="w-5 h-5" />}
             </div>
 
             <div className="flex-1">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2">
-                  {alt.type === 'BILLING' && <Badge variant="info" size="sm">Định kỳ</Badge>}
+                  {alt.type === 'BILLING' && <Badge variant="info" size="sm">Định kỳ E-Billing</Badge>}
+                  {alt.type === 'ENERGY' && <Badge variant="warning" size="sm">AI Energy Waste</Badge>}
                   <h3 className="font-bold text-xs text-slate-900">{alt.title}</h3>
                 </div>
                 <span className="text-[11px] text-slate-400 font-mono">{alt.time}</span>
@@ -251,18 +245,22 @@ export default function StudentAlertsPage() {
                 {alt.description}
               </p>
 
-              {alt.type === 'BILLING' && (
-                <div className="mt-2.5 pt-2 border-t border-blue-100 flex items-center justify-between">
-                  <span className="text-[11px] text-blue-900 font-bold">
-                    Tiền của bạn: {monthlyBill.perStudent.toLocaleString('vi-VN')} ₫
-                  </span>
-                  <Link
-                    href="/student/energy"
-                    className="text-xs text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1"
+              {alt.type === 'ENERGY' && (
+                <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-amber-200">
+                  <button
+                    onClick={() => handleDeviceControl('LIGHT', 'off')}
+                    disabled={actionLoading === 'LIGHT_off'}
+                    className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer"
                   >
-                    <span>Xem chi tiết & Tải hóa đơn</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
+                    ⚡ Tắt Đèn
+                  </button>
+                  <button
+                    onClick={() => handleDeviceControl('FAN', 'off')}
+                    disabled={actionLoading === 'FAN_off'}
+                    className="px-3 py-1 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    🌪️ Tắt Quạt
+                  </button>
                 </div>
               )}
             </div>
